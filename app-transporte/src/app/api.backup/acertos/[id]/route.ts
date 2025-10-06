@@ -3,32 +3,32 @@ import { prisma } from "@/lib/prisma"
 import { withAuth } from "@/lib/authHelpers"
 import { type AuthUser } from "@/lib/auth"
 
-type Params = {
-  params: { id: string }
-}
+type Params = Promise<{ id: string }>
 
-async function getDespesa(user: AuthUser, params: Params) {
+async function getAcerto(user: AuthUser, params: Params) {
   try {
-    const { id } = params.params
+    const { id } = await params
 
-    // Buscar despesa com dados relacionados
-    const despesa = await prisma.despesa.findUnique({
+    // Buscar acerto com dados relacionados
+    const acerto = await prisma.acerto.findUnique({
       where: { id },
       include: {
         viagem: {
           include: {
             transportadora: true,
-            motorista: true
+            motorista: true,
+            receitas: true,
+            despesas: true
           }
         }
       }
     })
 
-    if (!despesa) {
+    if (!acerto) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'Despesa não encontrada' 
+          error: 'Acerto não encontrado' 
         },
         { status: 404 }
       )
@@ -36,14 +36,14 @@ async function getDespesa(user: AuthUser, params: Params) {
 
     // Verificar acesso baseado no role
     const hasAccess = user.role === 'ADMIN_TRANSPORTADORA' 
-      ? despesa.viagem.transportadoraId === user.transportadoraId
-      : despesa.viagem.motoristaId === user.motoristaId
+      ? acerto.viagem.transportadoraId === user.transportadoraId
+      : acerto.viagem.motoristaId === user.motoristaId
 
     if (!hasAccess) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'Você não tem permissão para acessar esta despesa' 
+          error: 'Você não tem permissão para acessar este acerto' 
         },
         { status: 403 }
       )
@@ -51,10 +51,10 @@ async function getDespesa(user: AuthUser, params: Params) {
 
     return NextResponse.json({
       success: true,
-      data: despesa
+      data: acerto
     })
   } catch (error) {
-    console.error('Erro ao buscar despesa:', error)
+    console.error('Erro ao buscar acerto:', error)
     return NextResponse.json(
       { 
         success: false, 
@@ -65,13 +65,13 @@ async function getDespesa(user: AuthUser, params: Params) {
   }
 }
 
-async function updateDespesa(user: AuthUser, req: NextRequest, params: Params) {
+async function updateAcerto(user: AuthUser, req: NextRequest, params: Params) {
   try {
-    const { id } = params.params
+    const { id } = await params
     const data = await req.json()
 
-    // Buscar despesa existente
-    const despesaExistente = await prisma.despesa.findUnique({
+    // Buscar acerto existente
+    const acertoExistente = await prisma.acerto.findUnique({
       where: { id },
       include: {
         viagem: {
@@ -83,11 +83,11 @@ async function updateDespesa(user: AuthUser, req: NextRequest, params: Params) {
       }
     })
 
-    if (!despesaExistente) {
+    if (!acertoExistente) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'Despesa não encontrada' 
+          error: 'Acerto não encontrado' 
         },
         { status: 404 }
       )
@@ -95,14 +95,14 @@ async function updateDespesa(user: AuthUser, req: NextRequest, params: Params) {
 
     // Verificar acesso
     const hasAccess = user.role === 'ADMIN_TRANSPORTADORA' 
-      ? despesaExistente.viagem.transportadoraId === user.transportadoraId
-      : despesaExistente.viagem.motoristaId === user.motoristaId
+      ? acertoExistente.viagem.transportadoraId === user.transportadoraId
+      : acertoExistente.viagem.motoristaId === user.motoristaId
 
     if (!hasAccess) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'Você não tem permissão para editar esta despesa' 
+          error: 'Você não tem permissão para editar este acerto' 
         },
         { status: 403 }
       )
@@ -111,17 +111,17 @@ async function updateDespesa(user: AuthUser, req: NextRequest, params: Params) {
     // Preparar dados para atualização
     const updateData: {
       valor?: number
-      descricao?: string
+      pago?: boolean
       viagemId?: string
     } = {}
 
     if (data.valor !== undefined) {
       const valor = parseFloat(data.valor)
-      if (isNaN(valor) || valor <= 0) {
+      if (isNaN(valor)) {
         return NextResponse.json(
           { 
             success: false, 
-            error: 'Valor deve ser um número positivo' 
+            error: 'Valor deve ser um número válido' 
           },
           { status: 400 }
         )
@@ -129,17 +129,8 @@ async function updateDespesa(user: AuthUser, req: NextRequest, params: Params) {
       updateData.valor = valor
     }
 
-    if (data.descricao !== undefined) {
-      if (!data.descricao.trim()) {
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: 'Descrição é obrigatória' 
-          },
-          { status: 400 }
-        )
-      }
-      updateData.descricao = data.descricao.trim()
+    if (data.pago !== undefined) {
+      updateData.pago = Boolean(data.pago)
     }
 
     if (data.viagemId !== undefined) {
@@ -170,7 +161,7 @@ async function updateDespesa(user: AuthUser, req: NextRequest, params: Params) {
         return NextResponse.json(
           { 
             success: false, 
-            error: 'Você não tem permissão para associar esta despesa à viagem selecionada' 
+            error: 'Você não tem permissão para associar este acerto à viagem selecionada' 
           },
           { status: 403 }
         )
@@ -179,15 +170,17 @@ async function updateDespesa(user: AuthUser, req: NextRequest, params: Params) {
       updateData.viagemId = data.viagemId
     }
 
-    // Atualizar despesa
-    const despesaAtualizada = await prisma.despesa.update({
+    // Atualizar acerto
+    const acertoAtualizado = await prisma.acerto.update({
       where: { id },
       data: updateData,
       include: {
         viagem: {
           include: {
             transportadora: true,
-            motorista: true
+            motorista: true,
+            receitas: true,
+            despesas: true
           }
         }
       }
@@ -195,11 +188,11 @@ async function updateDespesa(user: AuthUser, req: NextRequest, params: Params) {
 
     return NextResponse.json({
       success: true,
-      data: despesaAtualizada,
-      message: 'Despesa atualizada com sucesso'
+      data: acertoAtualizado,
+      message: 'Acerto atualizado com sucesso'
     })
   } catch (error) {
-    console.error('Erro ao atualizar despesa:', error)
+    console.error('Erro ao atualizar acerto:', error)
     return NextResponse.json(
       { 
         success: false, 
@@ -210,12 +203,12 @@ async function updateDespesa(user: AuthUser, req: NextRequest, params: Params) {
   }
 }
 
-async function deleteDespesa(user: AuthUser, params: Params) {
+async function deleteAcerto(user: AuthUser, params: Params) {
   try {
-    const { id } = params.params
+    const { id } = await params
 
-    // Buscar despesa existente
-    const despesaExistente = await prisma.despesa.findUnique({
+    // Buscar acerto existente
+    const acertoExistente = await prisma.acerto.findUnique({
       where: { id },
       include: {
         viagem: {
@@ -227,11 +220,11 @@ async function deleteDespesa(user: AuthUser, params: Params) {
       }
     })
 
-    if (!despesaExistente) {
+    if (!acertoExistente) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'Despesa não encontrada' 
+          error: 'Acerto não encontrado' 
         },
         { status: 404 }
       )
@@ -239,30 +232,30 @@ async function deleteDespesa(user: AuthUser, params: Params) {
 
     // Verificar acesso
     const hasAccess = user.role === 'ADMIN_TRANSPORTADORA' 
-      ? despesaExistente.viagem.transportadoraId === user.transportadoraId
-      : despesaExistente.viagem.motoristaId === user.motoristaId
+      ? acertoExistente.viagem.transportadoraId === user.transportadoraId
+      : acertoExistente.viagem.motoristaId === user.motoristaId
 
     if (!hasAccess) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'Você não tem permissão para excluir esta despesa' 
+          error: 'Você não tem permissão para excluir este acerto' 
         },
         { status: 403 }
       )
     }
 
-    // Deletar despesa
-    await prisma.despesa.delete({
+    // Deletar acerto
+    await prisma.acerto.delete({
       where: { id }
     })
 
     return NextResponse.json({
       success: true,
-      message: 'Despesa excluída com sucesso'
+      message: 'Acerto excluído com sucesso'
     })
   } catch (error) {
-    console.error('Erro ao excluir despesa:', error)
+    console.error('Erro ao excluir acerto:', error)
     return NextResponse.json(
       { 
         success: false, 
@@ -273,17 +266,17 @@ async function deleteDespesa(user: AuthUser, params: Params) {
   }
 }
 
-// Usuários autenticados podem ver despesa específica (com validação de acesso)
+// Usuários autenticados podem ver acerto específico (com validação de acesso)
 export async function GET(request: NextRequest, params: Params) {
-  return withAuth(request, (user) => getDespesa(user, params))
+  return withAuth(request, (user) => getAcerto(user, params))
 }
 
 // Usuários autenticados podem atualizar (com validação de acesso)
 export async function PUT(request: NextRequest, params: Params) {
-  return withAuth(request, (user) => updateDespesa(user, request, params))
+  return withAuth(request, (user) => updateAcerto(user, request, params))
 }
 
 // Usuários autenticados podem deletar (com validação de acesso)
 export async function DELETE(request: NextRequest, params: Params) {
-  return withAuth(request, (user) => deleteDespesa(user, params))
+  return withAuth(request, (user) => deleteAcerto(user, params))
 }
