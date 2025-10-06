@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useCallback } from 'react'
 
 interface MotoristaFormData {
   nome: string
@@ -17,12 +18,17 @@ interface MotoristaFormData {
   status: 'ATIVO' | 'INATIVO'
 }
 
+interface Transportadora {
+  id: string;
+  nome: string;
+}
+
 interface MotoristaFormProps {
   isOpen: boolean
   onClose: () => void
   onSubmit: (data: MotoristaFormData) => void
   motorista?: MotoristaFormData & { id: string }
-  transportadoras: Array<{ id: string; nomeFantasia: string }>
+  transportadoras?: Array<Transportadora> // Opcional, será buscado da API se não fornecido
 }
 
 export function MotoristaForm({ 
@@ -30,7 +36,7 @@ export function MotoristaForm({
   onClose, 
   onSubmit, 
   motorista,
-  transportadoras 
+  transportadoras: propTransportadoras 
 }: MotoristaFormProps) {
   const [formData, setFormData] = useState<MotoristaFormData>({
     nome: '',
@@ -45,6 +51,34 @@ export function MotoristaForm({
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [transportadorasList, setTransportadorasList] = useState<Array<{ id: string; nome: string }>>([])
+  const [isLoadingTransportadoras, setIsLoadingTransportadoras] = useState(false)
+
+  // Função para buscar transportadoras da API
+  const fetchTransportadoras = useCallback(async () => {
+    if (propTransportadoras) {
+      setTransportadorasList(propTransportadoras);
+      return;
+    }
+    
+    setIsLoadingTransportadoras(true);
+    try {
+      const response = await fetch('/api/transportadoras');
+      if (response.ok) {
+        const data = await response.json();
+        setTransportadorasList(data.map((t: Transportadora) => ({ 
+          id: t.id, 
+          nome: t.nome 
+        })));
+      } else {
+        console.error('Erro ao carregar transportadoras:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar transportadoras:', error);
+    } finally {
+      setIsLoadingTransportadoras(false);
+    }
+  }, [propTransportadoras]);
 
   useEffect(() => {
     if (motorista) {
@@ -71,7 +105,12 @@ export function MotoristaForm({
       })
     }
     setErrors({})
-  }, [motorista, isOpen])
+    
+    // Buscar transportadoras quando o modal abrir
+    if (isOpen) {
+      fetchTransportadoras();
+    }
+  }, [motorista, isOpen, fetchTransportadoras])
 
   const formatCPF = (value: string) => {
     const numbers = value.replace(/\D/g, '')
@@ -310,20 +349,25 @@ export function MotoristaForm({
             <div className="md:col-span-2">
               <Label htmlFor="transportadoraId">Transportadora *</Label>
               <select
-                id="transportadoraId"
-                value={formData.transportadoraId}
-                onChange={(e) => handleInputChange('transportadoraId', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white ${
-                  errors.transportadoraId ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                <option value="" className="text-gray-900 bg-white">Selecione uma transportadora</option>
-                {transportadoras.map((transportadora) => (
-                  <option key={transportadora.id} value={transportadora.id} className="text-gray-900 bg-white">
-                    {transportadora.nomeFantasia}
-                  </option>
-                ))}
-              </select>
+                  id="transportadoraId"
+                  value={formData.transportadoraId}
+                  onChange={(e) => handleInputChange('transportadoraId', e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white ${
+                    errors.transportadoraId ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  disabled={isLoadingTransportadoras}
+                >
+                  <option value="">Selecione uma transportadora</option>
+                  {isLoadingTransportadoras ? (
+                    <option value="" disabled>Carregando transportadoras...</option>
+                  ) : (
+                    transportadorasList.map((transportadora) => (
+                      <option key={transportadora.id} value={transportadora.id}>
+                        {transportadora.nome}
+                      </option>
+                    ))
+                  )}
+                </select>
               {errors.transportadoraId && (
                 <p className="text-sm text-red-500 mt-1">{errors.transportadoraId}</p>
               )}

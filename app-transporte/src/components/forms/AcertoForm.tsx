@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -52,26 +52,23 @@ const statusOptions = [
   { value: 'CANCELADO', label: 'Cancelado' }
 ]
 
-// Mock data para motoristas
-const mockMotoristas = [
-  { id: '1', nome: 'João Silva', cpf: '123.456.789-10' },
-  { id: '2', nome: 'Maria Santos', cpf: '987.654.321-00' },
-  { id: '3', nome: 'Pedro Costa', cpf: '456.789.123-45' }
-]
+interface Motorista {
+  id: string
+  nome: string
+  cpf: string
+}
 
-// Mock data para transportadoras
-const mockTransportadoras = [
-  { id: '1', nome: 'TransLog Express' },
-  { id: '2', nome: 'Rodoviária Sul' },
-  { id: '3', nome: 'CargoFast' }
-]
+interface Transportadora {
+  id: string
+  nome: string
+}
 
-// Mock data para viagens
-const mockViagens = [
-  { id: '1', origem: 'São Paulo', destino: 'Rio de Janeiro', valor_frete: 2500 },
-  { id: '2', origem: 'Belo Horizonte', destino: 'Salvador', valor_frete: 3200 },
-  { id: '3', origem: 'Curitiba', destino: 'Florianópolis', valor_frete: 1800 }
-]
+interface Viagem {
+  id: string
+  origem: string
+  destino: string
+  valor_frete: number
+}
 
 export function AcertoForm({ acerto, onSave, onCancel }: AcertoFormProps) {
   const [formData, setFormData] = useState<AcertoFormData>({
@@ -82,20 +79,92 @@ export function AcertoForm({ acerto, onSave, onCancel }: AcertoFormProps) {
     status: acerto?.status || 'PENDENTE',
     motorista_id: acerto?.motorista_id || '',
     viagem_id: acerto?.viagem_id || '',
-    transportadora_id: acerto?.transportadora_id || '1',
+    transportadora_id: acerto?.transportadora_id || '',
     observacoes: acerto?.observacoes || ''
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
+  const [motoristas, setMotoristas] = useState<Motorista[]>([])
+  const [transportadoras, setTransportadoras] = useState<Transportadora[]>([])
+  const [viagens, setViagens] = useState<Viagem[]>([])
+  const [isLoadingMotoristas, setIsLoadingMotoristas] = useState(false)
+  const [isLoadingTransportadoras, setIsLoadingTransportadoras] = useState(false)
+  const [isLoadingViagens, setIsLoadingViagens] = useState(false)
 
-  const validateForm = (): boolean => {
+  const fetchMotoristas = useCallback(async () => {
+    setIsLoadingMotoristas(true)
+    try {
+      const response = await fetch('/api/motoristas')
+      if (!response.ok) {
+        throw new Error('Erro ao carregar motoristas')
+      }
+      const data = await response.json()
+      setMotoristas(data.map((m: Motorista) => ({
+        id: m.id,
+        nome: m.nome || '',
+        cpf: m.cpf || ''
+      })))
+    } catch (error) {
+      console.error('Erro ao buscar motoristas:', error)
+    } finally {
+      setIsLoadingMotoristas(false)
+    }
+  }, [])
+
+  const fetchTransportadoras = useCallback(async () => {
+    setIsLoadingTransportadoras(true)
+    try {
+      const response = await fetch('/api/transportadoras')
+      if (!response.ok) {
+        throw new Error('Erro ao carregar transportadoras')
+      }
+      const data = await response.json()
+      setTransportadoras(data.map((t: Transportadora) => ({
+        id: t.id,
+        nome: t.nome || ''
+      })))
+    } catch (error) {
+      console.error('Erro ao buscar transportadoras:', error)
+    } finally {
+      setIsLoadingTransportadoras(false)
+    }
+  }, [])
+
+  const fetchViagens = useCallback(async () => {
+    setIsLoadingViagens(true)
+    try {
+      const response = await fetch('/api/viagens')
+      if (!response.ok) {
+        throw new Error('Erro ao carregar viagens')
+      }
+      const data = await response.json()
+      setViagens(data.map((v: Viagem) => ({
+        id: v.id,
+        origem: v.origem || '',
+        destino: v.destino || '',
+        valor_frete: v.valor_frete || 0
+      })))
+    } catch (error) {
+      console.error('Erro ao buscar viagens:', error)
+    } finally {
+      setIsLoadingViagens(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchMotoristas()
+    fetchTransportadoras()
+    fetchViagens()
+  }, [])
+
+    const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
 
     if (!formData.descricao.trim()) {
       newErrors.descricao = 'Descrição é obrigatória'
     }
-
+    
     if (!formData.valor.trim()) {
       newErrors.valor = 'Valor é obrigatório'
     } else {
@@ -158,7 +227,7 @@ export function AcertoForm({ acerto, onSave, onCancel }: AcertoFormProps) {
   // Auto-preencher descrição baseada no tipo e viagem selecionada
   const handleTipoChange = (tipo: string) => {
     let descricao = formData.descricao
-    const viagem = mockViagens.find(v => v.id === formData.viagem_id)
+    const viagem = viagens.find(v => v.id === formData.viagem_id)
     
     if (!formData.descricao || formData.descricao.includes('Comissão') || formData.descricao.includes('Desconto') || formData.descricao.includes('Bônus') || formData.descricao.includes('Ajuste')) {
       switch (tipo) {
@@ -181,7 +250,7 @@ export function AcertoForm({ acerto, onSave, onCancel }: AcertoFormProps) {
   }
 
   const handleViagemChange = (viagemId: string) => {
-    const viagem = mockViagens.find(v => v.id === viagemId)
+    const viagem = viagens.find(v => v.id === viagemId)
     let descricao = formData.descricao
     
     if (formData.tipo === 'COMISSAO' && viagem) {
@@ -315,13 +384,18 @@ export function AcertoForm({ acerto, onSave, onCancel }: AcertoFormProps) {
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white ${
                     errors.motorista_id ? 'border-red-500' : 'border-gray-300'
                   }`}
+                  disabled={isLoadingMotoristas}
                 >
-                  <option value="" className="text-gray-900 bg-white">Selecione um motorista</option>
-                  {mockMotoristas.map(motorista => (
-                    <option key={motorista.id} value={motorista.id} className="text-gray-900 bg-white">
-                      {motorista.nome} - {motorista.cpf}
-                    </option>
-                  ))}
+                  <option value="">Selecione um motorista</option>
+                  {isLoadingMotoristas ? (
+                    <option value="" disabled>Carregando motoristas...</option>
+                  ) : (
+                    motoristas.map((motorista) => (
+                      <option key={motorista.id} value={motorista.id}>
+                        {motorista.nome} - {motorista.cpf}
+                      </option>
+                    ))
+                  )}
                 </select>
                 {errors.motorista_id && (
                   <p className="text-sm text-red-500 mt-1">{errors.motorista_id}</p>
@@ -337,13 +411,18 @@ export function AcertoForm({ acerto, onSave, onCancel }: AcertoFormProps) {
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white ${
                     errors.transportadora_id ? 'border-red-500' : 'border-gray-300'
                   }`}
+                  disabled={isLoadingTransportadoras}
                 >
-                  <option value="" className="text-gray-900 bg-white">Selecione uma transportadora</option>
-                  {mockTransportadoras.map(transportadora => (
-                    <option key={transportadora.id} value={transportadora.id} className="text-gray-900 bg-white">
-                      {transportadora.nome}
-                    </option>
-                  ))}
+                  <option value="">Selecione uma transportadora</option>
+                  {isLoadingTransportadoras ? (
+                    <option value="" disabled>Carregando transportadoras...</option>
+                  ) : (
+                    transportadoras.map((transportadora) => (
+                      <option key={transportadora.id} value={transportadora.id}>
+                        {transportadora.nome}
+                      </option>
+                    ))
+                  )}
                 </select>
                 {errors.transportadora_id && (
                   <p className="text-sm text-red-500 mt-1">{errors.transportadora_id}</p>
@@ -356,16 +435,21 @@ export function AcertoForm({ acerto, onSave, onCancel }: AcertoFormProps) {
               <Label htmlFor="viagem_id">Viagem (opcional)</Label>
               <select
                 id="viagem_id"
-                value={formData.viagem_id}
+                value={formData.viagem_id || ''}
                 onChange={(e) => handleViagemChange(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                disabled={isLoadingViagens}
               >
-                <option value="" className="text-gray-900 bg-white">Não vinculada a viagem</option>
-                {mockViagens.map(viagem => (
-                  <option key={viagem.id} value={viagem.id} className="text-gray-900 bg-white">
-                    {viagem.origem} → {viagem.destino} (R$ {viagem.valor_frete.toLocaleString('pt-BR')})
-                  </option>
-                ))}
+                <option value="">Não vinculada a viagem</option>
+                {isLoadingViagens ? (
+                  <option value="" disabled>Carregando viagens...</option>
+                ) : (
+                  viagens.map((viagem) => (
+                    <option key={viagem.id} value={viagem.id}>
+                      {viagem.origem} → {viagem.destino} (R$ {viagem.valor_frete.toLocaleString('pt-BR')})
+                    </option>
+                  ))
+                )}
               </select>
               <p className="text-sm text-gray-500 mt-1">
                 Vincule este acerto a uma viagem específica (opcional)

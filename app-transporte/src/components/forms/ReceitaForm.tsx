@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -27,6 +27,23 @@ interface Receita {
   created_at: string
 }
 
+interface Transportadora {
+  id: string;
+  nome: string;
+}
+
+interface Transportadora {
+  id: string;
+  nome: string;
+}
+
+interface Viagem {
+  id: string;
+  origem: string;
+  destino: string;
+  valor_frete: number;
+}
+
 interface ReceitaFormProps {
   receita?: Receita | null
   onSave: (data: ReceitaFormData) => Promise<void>
@@ -40,21 +57,12 @@ const categorias = [
   { value: 'OUTROS', label: 'Outros' }
 ]
 
-// Mock data para transportadoras
-const mockTransportadoras = [
-  { id: '1', nome: 'TransLog Express' },
-  { id: '2', nome: 'Rodoviária Sul' },
-  { id: '3', nome: 'CargoFast' }
-]
-
-// Mock data para viagens
-const mockViagens = [
-  { id: '1', origem: 'São Paulo', destino: 'Rio de Janeiro' },
-  { id: '2', origem: 'Belo Horizonte', destino: 'Salvador' },
-  { id: '3', origem: 'Curitiba', destino: 'Florianópolis' }
-]
-
 export function ReceitaForm({ receita, onSave, onCancel }: ReceitaFormProps) {
+  const [transportadoras, setTransportadoras] = useState<Array<{ id: string; nome: string }>>([])
+  const [viagens, setViagens] = useState<Array<{ id: string; origem: string; destino: string }>>([])
+  const [isLoadingTransportadoras, setIsLoadingTransportadoras] = useState(false)
+  const [isLoadingViagens, setIsLoadingViagens] = useState(false)
+  
   const [formData, setFormData] = useState<ReceitaFormData>({
     descricao: receita?.descricao || '',
     valor: receita?.valor?.toString() || '',
@@ -66,6 +74,54 @@ export function ReceitaForm({ receita, onSave, onCancel }: ReceitaFormProps) {
 
   const [errors, setErrors] = useState<Partial<ReceitaFormData>>({})
   const [loading, setLoading] = useState(false)
+  
+  // Funções para buscar dados da API
+  const fetchTransportadoras = useCallback(async () => {
+    setIsLoadingTransportadoras(true);
+    try {
+      const response = await fetch('/api/transportadoras');
+      if (response.ok) {
+        const data = await response.json();
+        setTransportadoras(data.map((t: Transportadora) => ({ 
+          id: t.id, 
+          nome: t.nome || ''
+        })));
+      } else {
+        console.error('Erro ao carregar transportadoras:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar transportadoras:', error);
+    } finally {
+      setIsLoadingTransportadoras(false);
+    }
+  }, []);
+
+  const fetchViagens = useCallback(async () => {
+    setIsLoadingViagens(true);
+    try {
+      const response = await fetch('/api/viagens');
+      if (response.ok) {
+        const data = await response.json();
+        setViagens(data.map((v: Viagem) => ({
+          id: v.id,
+          origem: v.origem || '',
+          destino: v.destino || ''
+        })));
+      } else {
+        console.error('Erro ao carregar viagens:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar viagens:', error);
+    } finally {
+      setIsLoadingViagens(false);
+    }
+  }, []);
+  
+  // Carregar dados ao montar o componente
+  useEffect(() => {
+    fetchTransportadoras();
+    fetchViagens();
+  }, [fetchTransportadoras, fetchViagens]);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<ReceitaFormData> = {}
@@ -215,20 +271,25 @@ export function ReceitaForm({ receita, onSave, onCancel }: ReceitaFormProps) {
             <div>
               <Label htmlFor="transportadora_id">Transportadora *</Label>
               <select
-                id="transportadora_id"
-                value={formData.transportadora_id}
-                onChange={(e) => handleInputChange('transportadora_id', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white ${
-                  errors.transportadora_id ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                <option value="" className="text-gray-900 bg-white">Selecione uma transportadora</option>
-                {mockTransportadoras.map(transportadora => (
-                  <option key={transportadora.id} value={transportadora.id} className="text-gray-900 bg-white">
-                    {transportadora.nome}
-                  </option>
-                ))}
-              </select>
+                  id="transportadora_id"
+                  value={formData.transportadora_id}
+                  onChange={(e) => handleInputChange('transportadora_id', e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white ${
+                    errors.transportadora_id ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  disabled={isLoadingTransportadoras}
+                >
+                  <option value="">Selecione uma transportadora</option>
+                  {isLoadingTransportadoras ? (
+                    <option value="" disabled>Carregando transportadoras...</option>
+                  ) : (
+                    transportadoras.map((transportadora) => (
+                      <option key={transportadora.id} value={transportadora.id}>
+                        {transportadora.nome}
+                      </option>
+                    ))
+                  )}
+                </select>
               {errors.transportadora_id && (
                 <p className="text-sm text-red-500 mt-1">{errors.transportadora_id}</p>
               )}
@@ -239,16 +300,23 @@ export function ReceitaForm({ receita, onSave, onCancel }: ReceitaFormProps) {
               <Label htmlFor="viagem_id">Viagem (opcional)</Label>
               <select
                 id="viagem_id"
-                value={formData.viagem_id}
+                value={formData.viagem_id || ''}
                 onChange={(e) => handleInputChange('viagem_id', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white ${
+                  errors.viagem_id ? 'border-red-500' : 'border-gray-300'
+                }`}
+                disabled={isLoadingViagens}
               >
-                <option value="" className="text-gray-900 bg-white">Não vinculada a viagem</option>
-                {mockViagens.map(viagem => (
-                  <option key={viagem.id} value={viagem.id} className="text-gray-900 bg-white">
-                    {viagem.origem} → {viagem.destino}
-                  </option>
-                ))}
+                <option value="">Selecione uma viagem (opcional)</option>
+                {isLoadingViagens ? (
+                  <option value="" disabled>Carregando viagens...</option>
+                ) : (
+                  viagens.map((viagem) => (
+                    <option key={viagem.id} value={viagem.id}>
+                      {viagem.origem} → {viagem.destino}
+                    </option>
+                  ))
+                )}
               </select>
               <p className="text-sm text-gray-500 mt-1">
                 Vincule esta receita a uma viagem específica (opcional)

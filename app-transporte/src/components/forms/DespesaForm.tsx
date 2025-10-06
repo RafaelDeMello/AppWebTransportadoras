@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -46,19 +46,16 @@ const categorias = [
   { value: 'OUTROS', label: 'Outros' }
 ]
 
-// Mock data para transportadoras
-const mockTransportadoras = [
-  { id: '1', nome: 'TransLog Express' },
-  { id: '2', nome: 'Rodoviária Sul' },
-  { id: '3', nome: 'CargoFast' }
-]
+interface Transportadora {
+  id: string
+  nome: string
+}
 
-// Mock data para viagens
-const mockViagens = [
-  { id: '1', origem: 'São Paulo', destino: 'Rio de Janeiro' },
-  { id: '2', origem: 'Belo Horizonte', destino: 'Salvador' },
-  { id: '3', origem: 'Curitiba', destino: 'Florianópolis' }
-]
+interface Viagem {
+  id: string
+  origem: string
+  destino: string
+}
 
 export function DespesaForm({ despesa, onSave, onCancel }: DespesaFormProps) {
   const [formData, setFormData] = useState<DespesaFormData>({
@@ -67,12 +64,60 @@ export function DespesaForm({ despesa, onSave, onCancel }: DespesaFormProps) {
     data: despesa?.data || new Date().toISOString().split('T')[0],
     categoria: despesa?.categoria || 'COMBUSTIVEL',
     viagem_id: despesa?.viagem_id || '',
-    transportadora_id: despesa?.transportadora_id || '1',
+    transportadora_id: despesa?.transportadora_id || '',
     fornecedor: despesa?.fornecedor || ''
   })
 
   const [errors, setErrors] = useState<Partial<DespesaFormData>>({})
   const [loading, setLoading] = useState(false)
+  const [transportadoras, setTransportadoras] = useState<Transportadora[]>([])
+  const [viagens, setViagens] = useState<Viagem[]>([])
+  const [isLoadingTransportadoras, setIsLoadingTransportadoras] = useState(false)
+  const [isLoadingViagens, setIsLoadingViagens] = useState(false)
+
+  const fetchTransportadoras = useCallback(async () => {
+    setIsLoadingTransportadoras(true)
+    try {
+      const response = await fetch('/api/transportadoras')
+      if (!response.ok) {
+        throw new Error('Erro ao carregar transportadoras')
+      }
+      const data = await response.json()
+      setTransportadoras(data.map((t: Transportadora) => ({
+        id: t.id,
+        nome: t.nome || ''
+      })))
+    } catch (error) {
+      console.error('Erro ao buscar transportadoras:', error)
+    } finally {
+      setIsLoadingTransportadoras(false)
+    }
+  }, [])
+
+  const fetchViagens = useCallback(async () => {
+    setIsLoadingViagens(true)
+    try {
+      const response = await fetch('/api/viagens')
+      if (!response.ok) {
+        throw new Error('Erro ao carregar viagens')
+      }
+      const data = await response.json()
+      setViagens(data.map((v: Viagem) => ({
+        id: v.id,
+        origem: v.origem || '',
+        destino: v.destino || ''
+      })))
+    } catch (error) {
+      console.error('Erro ao buscar viagens:', error)
+    } finally {
+      setIsLoadingViagens(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchTransportadoras()
+    fetchViagens()
+  }, [])
 
   const validateForm = (): boolean => {
     const newErrors: Partial<DespesaFormData> = {}
@@ -80,7 +125,7 @@ export function DespesaForm({ despesa, onSave, onCancel }: DespesaFormProps) {
     if (!formData.descricao.trim()) {
       newErrors.descricao = 'Descrição é obrigatória'
     }
-
+    
     if (!formData.valor.trim()) {
       newErrors.valor = 'Valor é obrigatório'
     } else {
@@ -243,13 +288,18 @@ export function DespesaForm({ despesa, onSave, onCancel }: DespesaFormProps) {
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white ${
                   errors.transportadora_id ? 'border-red-500' : 'border-gray-300'
                 }`}
+                disabled={isLoadingTransportadoras}
               >
-                <option value="" className="text-gray-900 bg-white">Selecione uma transportadora</option>
-                {mockTransportadoras.map(transportadora => (
-                  <option key={transportadora.id} value={transportadora.id} className="text-gray-900 bg-white">
-                    {transportadora.nome}
-                  </option>
-                ))}
+                <option value="">Selecione uma transportadora</option>
+                {isLoadingTransportadoras ? (
+                  <option value="" disabled>Carregando transportadoras...</option>
+                ) : (
+                  transportadoras.map((transportadora) => (
+                    <option key={transportadora.id} value={transportadora.id}>
+                      {transportadora.nome}
+                    </option>
+                  ))
+                )}
               </select>
               {errors.transportadora_id && (
                 <p className="text-sm text-red-500 mt-1">{errors.transportadora_id}</p>
@@ -261,16 +311,21 @@ export function DespesaForm({ despesa, onSave, onCancel }: DespesaFormProps) {
               <Label htmlFor="viagem_id">Viagem (opcional)</Label>
               <select
                 id="viagem_id"
-                value={formData.viagem_id}
+                value={formData.viagem_id || ''}
                 onChange={(e) => handleInputChange('viagem_id', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                disabled={isLoadingViagens}
               >
-                <option value="" className="text-gray-900 bg-white">Não vinculada a viagem</option>
-                {mockViagens.map(viagem => (
-                  <option key={viagem.id} value={viagem.id} className="text-gray-900 bg-white">
-                    {viagem.origem} → {viagem.destino}
-                  </option>
-                ))}
+                <option value="">Não vinculada a viagem</option>
+                {isLoadingViagens ? (
+                  <option value="" disabled>Carregando viagens...</option>
+                ) : (
+                  viagens.map((viagem) => (
+                    <option key={viagem.id} value={viagem.id}>
+                      {viagem.origem} → {viagem.destino}
+                    </option>
+                  ))
+                )}
               </select>
               <p className="text-sm text-gray-500 mt-1">
                 Vincule esta despesa a uma viagem específica (opcional)
