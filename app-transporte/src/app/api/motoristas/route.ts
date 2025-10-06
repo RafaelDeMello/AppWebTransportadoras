@@ -1,9 +1,17 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { withAuth, withAdminAuth } from "@/lib/authHelpers"
+import { type AuthUser } from "@/lib/auth"
 
-export async function GET() {
+async function getMotoristas(user: AuthUser) {
   try {
+    // Construir filtros baseados no usuário
+    const whereClause = user.role === 'ADMIN_TRANSPORTADORA' 
+      ? { transportadoraId: user.transportadoraId! } // Admin vê todos motoristas da sua transportadora
+      : { id: user.motoristaId! } // Motorista só vê seus próprios dados
+
     const motoristas = await prisma.motorista.findMany({
+      where: whereClause,
       include: {
         transportadora: true,
         usuarios: true,
@@ -37,18 +45,32 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
+async function createMotorista(user: AuthUser, req: NextRequest) {
   try {
     const data = await req.json()
     
     // Validação básica
-    if (!data.nome || !data.cpf || !data.cnh || !data.telefone || !data.transportadoraId) {
+    if (!data.nome || !data.cpf || !data.cnh || !data.telefone) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'Nome, CPF, CNH, telefone e transportadoraId são obrigatórios' 
+          error: 'Nome, CPF, CNH e telefone são obrigatórios' 
         },
         { status: 400 }
+      )
+    }
+
+    // Para admins, usar a transportadora atual. Para motoristas, não permitir criação
+    const transportadoraId = data.transportadoraId || user.transportadoraId!
+
+    // Verificar se o admin está tentando criar motorista para sua própria transportadora
+    if (transportadoraId !== user.transportadoraId) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Você só pode criar motoristas para sua própria transportadora' 
+        },
+        { status: 403 }
       )
     }
 
@@ -67,21 +89,6 @@ export async function POST(req: Request) {
       )
     }
 
-    // Verificar se transportadora existe
-    const transportadora = await prisma.transportadora.findUnique({
-      where: { id: data.transportadoraId }
-    })
-
-    if (!transportadora) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Transportadora não encontrada' 
-        },
-        { status: 404 }
-      )
-    }
-
     // Criar motorista
     const motorista = await prisma.motorista.create({
       data: {
@@ -89,7 +96,7 @@ export async function POST(req: Request) {
         cpf: data.cpf,
         cnh: data.cnh,
         telefone: data.telefone,
-        transportadoraId: data.transportadoraId
+        transportadoraId: transportadoraId
       },
       include: {
         transportadora: true
@@ -114,4 +121,14 @@ export async function POST(req: Request) {
       { status: 500 }
     )
   }
+}
+
+// Qualquer usuário autenticado pode listar (com filtros por role)
+export async function GET(request: NextRequest) {
+  return withAuth(request, getMotoristas)
+}
+
+// Apenas admins podem criar motoristas
+export async function POST(request: NextRequest) {
+  return withAdminAuth(request, createMotorista)
 }

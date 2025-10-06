@@ -1,9 +1,25 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { withAuth } from "@/lib/authHelpers"
+import { type AuthUser } from "@/lib/auth"
 
-export async function GET() {
+async function getAcertos(user: AuthUser) {
   try {
+    // Construir filtros baseados no usuário
+    const whereClause = user.role === 'ADMIN_TRANSPORTADORA' 
+      ? { 
+          viagem: { 
+            transportadoraId: user.transportadoraId! 
+          } 
+        } // Admin vê acertos de todas viagens da transportadora
+      : { 
+          viagem: { 
+            motoristaId: user.motoristaId! 
+          } 
+        } // Motorista só vê acertos das suas viagens
+
     const acertos = await prisma.acerto.findMany({
+      where: whereClause,
       include: {
         viagem: {
           include: {
@@ -36,28 +52,41 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
+async function createAcerto(user: AuthUser, req: NextRequest) {
   try {
     const data = await req.json()
     
     // Validação básica
-    if (!data.viagemId) {
+    if (!data.viagemId || !data.valor) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'ViagemId é obrigatório' 
+          error: 'ViagemId e valor são obrigatórios' 
         },
         { status: 400 }
       )
     }
 
-    // Verificar se viagem existe
+    // Validar valor
+    const valor = parseFloat(data.valor)
+    if (isNaN(valor)) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Valor deve ser um número válido' 
+        },
+        { status: 400 }
+      )
+    }
+
+    // Verificar se viagem existe e se o usuário tem acesso
     const viagem = await prisma.viagem.findUnique({
       where: { id: data.viagemId },
       include: {
+        transportadora: true,
+        motorista: true,
         receitas: true,
-        despesas: true,
-        acerto: true
+        despesas: true
       }
     })
 
@@ -71,33 +100,26 @@ export async function POST(req: Request) {
       )
     }
 
-    // Verificar se já existe acerto para essa viagem
-    if (viagem.acerto) {
+    // Verificar acesso baseado no role
+    const hasAccess = user.role === 'ADMIN_TRANSPORTADORA' 
+      ? viagem.transportadoraId === user.transportadoraId
+      : viagem.motoristaId === user.motoristaId
+
+    if (!hasAccess) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'Já existe um acerto para esta viagem' 
+          error: 'Você não tem permissão para criar acertos para esta viagem' 
         },
-        { status: 409 }
+        { status: 403 }
       )
     }
-
-    // Calcular o valor do acerto automaticamente
-    const totalReceitas = viagem.receitas.reduce((sum, receita) => {
-      return sum + Number(receita.valor)
-    }, 0)
-
-    const totalDespesas = viagem.despesas.reduce((sum, despesa) => {
-      return sum + Number(despesa.valor)
-    }, 0)
-
-    const valorAcerto = totalReceitas - totalDespesas
 
     // Criar acerto
     const acerto = await prisma.acerto.create({
       data: {
         viagemId: data.viagemId,
-        valor: valorAcerto,
+        valor: valor,
         pago: data.pago || false
       },
       include: {
@@ -116,12 +138,7 @@ export async function POST(req: Request) {
       {
         success: true,
         data: acerto,
-        message: 'Acerto criado com sucesso',
-        calculado: {
-          totalReceitas,
-          totalDespesas,
-          valorAcerto
-        }
+        message: 'Acerto criado com sucesso'
       },
       { status: 201 }
     )
@@ -135,4 +152,14 @@ export async function POST(req: Request) {
       { status: 500 }
     )
   }
+}
+
+// Usuários autenticados podem listar (com filtros por role)
+export async function GET(request: NextRequest) {
+  return withAuth(request, getAcertos)
+}
+
+// Usuários autenticados podem criar (com validação de acesso)
+export async function POST(request: NextRequest) {
+  return withAuth(request, createAcerto)
 }

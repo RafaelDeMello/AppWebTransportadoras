@@ -1,9 +1,17 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { withAuth, withAdminAuth } from "@/lib/authHelpers"
+import { type AuthUser } from "@/lib/auth"
 
-export async function GET() {
+async function getViagens(user: AuthUser) {
   try {
+    // Construir filtros baseados no usuário
+    const whereClause = user.role === 'ADMIN_TRANSPORTADORA' 
+      ? { transportadoraId: user.transportadoraId! } // Admin vê todas viagens da sua transportadora
+      : { motoristaId: user.motoristaId! } // Motorista só vê suas próprias viagens
+
     const viagens = await prisma.viagem.findMany({
+      where: whereClause,
       include: {
         transportadora: true,
         motorista: true,
@@ -33,37 +41,25 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
+async function createViagem(user: AuthUser, req: NextRequest) {
   try {
     const data = await req.json()
     
     // Validação básica
-    if (!data.descricao || !data.dataInicio || !data.transportadoraId || !data.motoristaId) {
+    if (!data.descricao || !data.dataInicio || !data.motoristaId) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'Descrição, data de início, transportadoraId e motoristaId são obrigatórios' 
+          error: 'Descrição, data de início e motoristaId são obrigatórios' 
         },
         { status: 400 }
       )
     }
 
-    // Verificar se transportadora existe
-    const transportadora = await prisma.transportadora.findUnique({
-      where: { id: data.transportadoraId }
-    })
+    // Usar a transportadora do usuário logado
+    const transportadoraId = user.transportadoraId!
 
-    if (!transportadora) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Transportadora não encontrada' 
-        },
-        { status: 404 }
-      )
-    }
-
-    // Verificar se motorista existe
+    // Verificar se motorista existe e pertence à mesma transportadora
     const motorista = await prisma.motorista.findUnique({
       where: { id: data.motoristaId }
     })
@@ -78,8 +74,7 @@ export async function POST(req: Request) {
       )
     }
 
-    // Verificar se motorista pertence à transportadora
-    if (motorista.transportadoraId !== data.transportadoraId) {
+    if (motorista.transportadoraId !== transportadoraId) {
       return NextResponse.json(
         { 
           success: false, 
@@ -96,7 +91,7 @@ export async function POST(req: Request) {
         dataInicio: new Date(data.dataInicio),
         dataFim: data.dataFim ? new Date(data.dataFim) : null,
         status: data.status || 'PLANEJADA',
-        transportadoraId: data.transportadoraId,
+        transportadoraId: transportadoraId,
         motoristaId: data.motoristaId
       },
       include: {
@@ -123,4 +118,14 @@ export async function POST(req: Request) {
       { status: 500 }
     )
   }
+}
+
+// Qualquer usuário autenticado pode listar (com filtros por role)
+export async function GET(request: NextRequest) {
+  return withAuth(request, getViagens)
+}
+
+// Apenas admins podem criar viagens
+export async function POST(request: NextRequest) {
+  return withAdminAuth(request, createViagem)
 }

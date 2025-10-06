@@ -1,9 +1,25 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { withAuth } from "@/lib/authHelpers"
+import { type AuthUser } from "@/lib/auth"
 
-export async function GET() {
+async function getDespesas(user: AuthUser) {
   try {
+    // Construir filtros baseados no usuário
+    const whereClause = user.role === 'ADMIN_TRANSPORTADORA' 
+      ? { 
+          viagem: { 
+            transportadoraId: user.transportadoraId! 
+          } 
+        } // Admin vê despesas de todas viagens da transportadora
+      : { 
+          viagem: { 
+            motoristaId: user.motoristaId! 
+          } 
+        } // Motorista só vê despesas das suas viagens
+
     const despesas = await prisma.despesa.findMany({
+      where: whereClause,
       include: {
         viagem: {
           include: {
@@ -34,7 +50,7 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
+async function createDespesa(user: AuthUser, req: NextRequest) {
   try {
     const data = await req.json()
     
@@ -61,9 +77,13 @@ export async function POST(req: Request) {
       )
     }
 
-    // Verificar se viagem existe
+    // Verificar se viagem existe e se o usuário tem acesso
     const viagem = await prisma.viagem.findUnique({
-      where: { id: data.viagemId }
+      where: { id: data.viagemId },
+      include: {
+        transportadora: true,
+        motorista: true
+      }
     })
 
     if (!viagem) {
@@ -73,6 +93,21 @@ export async function POST(req: Request) {
           error: 'Viagem não encontrada' 
         },
         { status: 404 }
+      )
+    }
+
+    // Verificar acesso baseado no role
+    const hasAccess = user.role === 'ADMIN_TRANSPORTADORA' 
+      ? viagem.transportadoraId === user.transportadoraId
+      : viagem.motoristaId === user.motoristaId
+
+    if (!hasAccess) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Você não tem permissão para adicionar despesas a esta viagem' 
+        },
+        { status: 403 }
       )
     }
 
@@ -111,4 +146,14 @@ export async function POST(req: Request) {
       { status: 500 }
     )
   }
+}
+
+// Usuários autenticados podem listar (com filtros por role)
+export async function GET(request: NextRequest) {
+  return withAuth(request, getDespesas)
+}
+
+// Usuários autenticados podem criar (com validação de acesso)
+export async function POST(request: NextRequest) {
+  return withAuth(request, createDespesa)
 }
