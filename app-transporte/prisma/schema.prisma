@@ -52,6 +52,7 @@ model Usuario {
   transportadora   Transportadora? @relation(fields: [transportadoraId], references: [id])
   motoristaId      String?     // obrigatório para MOTORISTA
   motorista        Motorista?  @relation(fields: [motoristaId], references: [id])
+  supabaseUid      String      @unique  // ID do usuário no Supabase Auth
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
