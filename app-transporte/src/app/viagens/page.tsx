@@ -106,13 +106,54 @@ export default function ViagensPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<'TODAS' | 'PLANEJADA' | 'EM_ANDAMENTO' | 'CONCLUIDA' | 'CANCELADA'>('TODAS')
 
-  // Carregar dados (mock)
+  // Carregar dados da API
   useEffect(() => {
     const loadViagens = async () => {
       setIsLoading(true)
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setViagens(mockViagens)
-      setIsLoading(false)
+      try {
+        const response = await fetch('/api/viagens')
+        if (response.ok) {
+          const data = await response.json()
+          // Mapear os dados da API para o formato esperado
+          const mappedData = data.map((v: {
+            id: string;
+            descricao: string;
+            dataInicio: string;
+            dataFim?: string;
+            status: string;
+            motorista?: { id: string; nome: string };
+            transportadora?: { id: string; nome: string };
+            totalReceitas?: number;
+            totalDespesas?: number;
+            lucro?: number;
+            createdAt: string;
+          }) => ({
+            id: v.id,
+            origem: v.descricao.split(' - ')[0] || v.descricao,
+            destino: v.descricao.split(' - ')[1] || 'Destino',
+            dataInicio: new Date(v.dataInicio).toLocaleDateString('pt-BR'),
+            dataFim: v.dataFim ? new Date(v.dataFim).toLocaleDateString('pt-BR') : null,
+            status: v.status,
+            motoristaNome: v.motorista?.nome || 'N/A',
+            motoristaId: v.motorista?.id,
+            transportadoraNome: v.transportadora?.nome || 'N/A',
+            transportadoraId: v.transportadora?.id,
+            valorReceita: v.totalReceitas || 0,
+            valorDespesa: v.totalDespesas || 0,
+            lucro: v.lucro || 0,
+            createdAt: new Date(v.createdAt).toLocaleDateString('pt-BR')
+          }))
+          setViagens(mappedData)
+        } else {
+          console.error('Erro ao carregar viagens:', response.statusText)
+          setViagens(mockViagens)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar viagens:', error)
+        setViagens(mockViagens)
+      } finally {
+        setIsLoading(false)
+      }
     }
 
     loadViagens()

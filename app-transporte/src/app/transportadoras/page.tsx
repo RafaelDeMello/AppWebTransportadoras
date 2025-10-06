@@ -88,14 +88,48 @@ export default function TransportadorasPage() {
     onConfirm: () => {}
   })
 
-  // Carregar dados (mock)
+  // Carregar dados da API
   useEffect(() => {
     const loadTransportadoras = async () => {
       setIsLoading(true)
-      // Simular chamada à API
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setTransportadoras(mockTransportadoras)
-      setIsLoading(false)
+      try {
+        const response = await fetch('/api/transportadoras')
+        if (response.ok) {
+          const data = await response.json()
+          // Mapear os dados da API para o formato esperado
+          const mappedData = data.map((t: {
+            id: string;
+            nome: string;
+            cnpj: string;
+            email?: string;
+            telefone?: string;
+            endereco?: string;
+            _count?: { motoristas: number; viagens: number };
+            createdAt: string;
+          }) => ({
+            id: t.id,
+            nome: t.nome,
+            cnpj: t.cnpj,
+            email: t.email,
+            telefone: t.telefone,
+            endereco: t.endereco,
+            totalMotoristas: t._count?.motoristas || 0,
+            viagensAtivas: t._count?.viagens || 0,
+            createdAt: new Date(t.createdAt).toLocaleDateString('pt-BR')
+          }))
+          setTransportadoras(mappedData)
+        } else {
+          console.error('Erro ao carregar transportadoras:', response.statusText)
+          // Em caso de erro, usar dados mock temporariamente
+          setTransportadoras(mockTransportadoras)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar transportadoras:', error)
+        // Em caso de erro, usar dados mock temporariamente
+        setTransportadoras(mockTransportadoras)
+      } finally {
+        setIsLoading(false)
+      }
     }
 
     loadTransportadoras()
@@ -122,9 +156,23 @@ export default function TransportadorasPage() {
       isOpen: true,
       title: 'Excluir Transportadora',
       description: `Tem certeza que deseja excluir a transportadora "${transportadora?.nome}"? Esta ação não pode ser desfeita.`,
-      onConfirm: () => {
-        console.log('Excluir transportadora:', id)
-        setTransportadoras(prev => prev.filter(t => t.id !== id))
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/transportadoras/${id}`, {
+            method: 'DELETE',
+          })
+          
+          if (response.ok) {
+            setTransportadoras(prev => prev.filter(t => t.id !== id))
+          } else {
+            const error = await response.json()
+            console.error('Erro ao excluir transportadora:', error.error)
+            alert(error.error || 'Erro ao excluir transportadora')
+          }
+        } catch (error) {
+          console.error('Erro ao excluir transportadora:', error)
+          alert('Erro ao excluir transportadora')
+        }
       }
     })
   }
@@ -148,28 +196,73 @@ export default function TransportadorasPage() {
     try {
       if (editingTransportadora) {
         // Editar existente
-        setTransportadoras(prev => 
-          prev.map(t => 
-            t.id === editingTransportadora.id 
-              ? { ...t, ...formData }
-              : t
+        const response = await fetch(`/api/transportadoras/${editingTransportadora.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+        })
+        
+        if (response.ok) {
+          const updatedTransportadora = await response.json()
+          setTransportadoras(prev => 
+            prev.map(t => 
+              t.id === editingTransportadora.id 
+                ? {
+                    id: updatedTransportadora.id,
+                    nome: updatedTransportadora.nome,
+                    cnpj: updatedTransportadora.cnpj,
+                    email: updatedTransportadora.email,
+                    telefone: updatedTransportadora.telefone,
+                    endereco: updatedTransportadora.endereco,
+                    totalMotoristas: t.totalMotoristas,
+                    viagensAtivas: t.viagensAtivas,
+                    createdAt: t.createdAt
+                  }
+                : t
+            )
           )
-        )
+        } else {
+          const error = await response.json()
+          alert(error.error || 'Erro ao atualizar transportadora')
+          return
+        }
       } else {
         // Criar novo
-        const newTransportadora = {
-          ...formData,
-          id: Date.now().toString(),
-          totalMotoristas: 0,
-          viagensAtivas: 0,
-          createdAt: new Date().toISOString().split('T')[0]
+        const response = await fetch('/api/transportadoras', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+        })
+        
+        if (response.ok) {
+          const newTransportadora = await response.json()
+          const mappedTransportadora = {
+            id: newTransportadora.id,
+            nome: newTransportadora.nome,
+            cnpj: newTransportadora.cnpj,
+            email: newTransportadora.email,
+            telefone: newTransportadora.telefone,
+            endereco: newTransportadora.endereco,
+            totalMotoristas: 0,
+            viagensAtivas: 0,
+            createdAt: new Date(newTransportadora.createdAt).toLocaleDateString('pt-BR')
+          }
+          setTransportadoras(prev => [...prev, mappedTransportadora])
+        } else {
+          const error = await response.json()
+          alert(error.error || 'Erro ao criar transportadora')
+          return
         }
-        setTransportadoras(prev => [...prev, newTransportadora])
       }
       setShowForm(false)
       setEditingTransportadora(null)
     } catch (error) {
       console.error('Erro ao salvar transportadora:', error)
+      alert('Erro ao salvar transportadora')
     }
   }
 

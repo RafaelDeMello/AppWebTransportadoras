@@ -116,13 +116,50 @@ export default function MotoristasPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingMotorista, setEditingMotorista] = useState<Motorista | null>(null)
 
-  // Carregar dados (mock)
+  // Carregar dados da API
   useEffect(() => {
     const loadMotoristas = async () => {
       setIsLoading(true)
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setMotoristas(mockMotoristas)
-      setIsLoading(false)
+      try {
+        const response = await fetch('/api/motoristas')
+        if (response.ok) {
+          const data = await response.json()
+          // Mapear os dados da API para o formato esperado
+          const mappedData = data.map((m: {
+            id: string;
+            nome: string;
+            cpf: string;
+            cnh: string;
+            telefone: string;
+            transportadora: { id: string; nome: string };
+            _count?: { viagens: number };
+            createdAt: string;
+          }) => ({
+            id: m.id,
+            nome: m.nome,
+            cpf: m.cpf,
+            cnh: m.cnh,
+            telefone: m.telefone,
+            transportadoraNome: m.transportadora.nome,
+            transportadoraId: m.transportadora.id,
+            viagensFinalizadas: m._count?.viagens || 0,
+            viagensAtivas: 0, // Será calculado posteriormente se necessário
+            status: 'ATIVO', // Default para agora
+            createdAt: new Date(m.createdAt).toLocaleDateString('pt-BR')
+          }))
+          setMotoristas(mappedData)
+        } else {
+          console.error('Erro ao carregar motoristas:', response.statusText)
+          // Em caso de erro, usar dados mock temporariamente
+          setMotoristas(mockMotoristas)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar motoristas:', error)
+        // Em caso de erro, usar dados mock temporariamente
+        setMotoristas(mockMotoristas)
+      } finally {
+        setIsLoading(false)
+      }
     }
 
     loadMotoristas()
@@ -150,9 +187,23 @@ export default function MotoristasPage() {
     }
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Tem certeza que deseja excluir este motorista?')) {
-      setMotoristas(prev => prev.filter(m => m.id !== id))
+      try {
+        const response = await fetch(`/api/motoristas/${id}`, {
+          method: 'DELETE',
+        })
+        
+        if (response.ok) {
+          setMotoristas(prev => prev.filter(m => m.id !== id))
+        } else {
+          const error = await response.json()
+          alert(error.error || 'Erro ao excluir motorista')
+        }
+      } catch (error) {
+        console.error('Erro ao excluir motorista:', error)
+        alert('Erro ao excluir motorista')
+      }
     }
   }
 
@@ -161,32 +212,81 @@ export default function MotoristasPage() {
     setIsFormOpen(true)
   }
 
-  const handleFormSubmit = (formData: MotoristaFormData) => {
-    if (editingMotorista) {
-      // Editar motorista existente
-      setMotoristas(prev => 
-        prev.map(m => 
-          m.id === editingMotorista.id 
-            ? { 
-                ...m, 
-                ...formData,
-                transportadoraNome: mockTransportadoras.find(t => t.id === formData.transportadoraId)?.nomeFantasia || m.transportadoraNome
-              }
-            : m
-        )
-      )
-    } else {
-      // Adicionar novo motorista
-      const newMotorista: Motorista = {
-        id: Date.now().toString(),
-        ...formData,
-        telefone: formData.telefone || '',
-        transportadoraNome: mockTransportadoras.find(t => t.id === formData.transportadoraId)?.nomeFantasia || '',
-        viagensFinalizadas: 0,
-        viagensAtivas: 0,
-        createdAt: new Date().toISOString().split('T')[0]
+  const handleFormSubmit = async (formData: MotoristaFormData) => {
+    try {
+      if (editingMotorista) {
+        // Editar motorista existente
+        const response = await fetch(`/api/motoristas/${editingMotorista.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+        })
+        
+        if (response.ok) {
+          const updatedMotorista = await response.json()
+          setMotoristas(prev => 
+            prev.map(m => 
+              m.id === editingMotorista.id 
+                ? { 
+                    id: updatedMotorista.id,
+                    nome: updatedMotorista.nome,
+                    cpf: updatedMotorista.cpf,
+                    cnh: updatedMotorista.cnh,
+                    telefone: updatedMotorista.telefone,
+                    transportadoraNome: updatedMotorista.transportadora.nome,
+                    transportadoraId: updatedMotorista.transportadora.id,
+                    viagensFinalizadas: m.viagensFinalizadas,
+                    viagensAtivas: m.viagensAtivas,
+                    status: m.status,
+                    createdAt: m.createdAt
+                  }
+                : m
+            )
+          )
+        } else {
+          const error = await response.json()
+          alert(error.error || 'Erro ao atualizar motorista')
+          return
+        }
+      } else {
+        // Adicionar novo motorista
+        const response = await fetch('/api/motoristas', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+        })
+        
+        if (response.ok) {
+          const newMotorista = await response.json()
+          const mappedMotorista: Motorista = {
+            id: newMotorista.id,
+            nome: newMotorista.nome,
+            cpf: newMotorista.cpf,
+            cnh: newMotorista.cnh,
+            telefone: newMotorista.telefone,
+            transportadoraNome: newMotorista.transportadora.nome,
+            transportadoraId: newMotorista.transportadora.id,
+            viagensFinalizadas: 0,
+            viagensAtivas: 0,
+            status: 'ATIVO',
+            createdAt: new Date(newMotorista.createdAt).toLocaleDateString('pt-BR')
+          }
+          setMotoristas(prev => [...prev, mappedMotorista])
+        } else {
+          const error = await response.json()
+          alert(error.error || 'Erro ao criar motorista')
+          return
+        }
       }
-      setMotoristas(prev => [...prev, newMotorista])
+      setIsFormOpen(false)
+      setEditingMotorista(null)
+    } catch (error) {
+      console.error('Erro ao salvar motorista:', error)
+      alert('Erro ao salvar motorista')
     }
   }
 
