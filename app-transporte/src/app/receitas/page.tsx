@@ -114,11 +114,34 @@ const categorias = [
 ]
 
 export default function ReceitasPage() {
-  const [receitas, setReceitas] = useState<Receita[]>(mockReceitas)
+  const [receitas, setReceitas] = useState<Receita[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategoria, setSelectedCategoria] = useState<string>('')
   const [showForm, setShowForm] = useState(false)
   const [editingReceita, setEditingReceita] = useState<Receita | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  
+  // Buscar dados da API
+  React.useEffect(() => {
+    const fetchReceitas = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/receitas');
+        if (response.ok) {
+          const data = await response.json();
+          setReceitas(data);
+        } else {
+          console.error('Erro ao carregar receitas:', response.statusText);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar receitas:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchReceitas();
+  }, []);
 
   // Filtros
   const filteredReceitas = receitas.filter(receita => {
