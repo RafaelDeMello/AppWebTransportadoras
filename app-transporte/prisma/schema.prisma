@@ -1,0 +1,138 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  directUrl         = env("DIRECT_URL")
+  relationMode      = "prisma"
+}
+enum Role {
+  ADMIN_TRANSPORTADORA
+  MOTORISTA
+}
+
+enum StatusViagem {
+  PLANEJADA
+  EM_ANDAMENTO
+  FINALIZADA
+  CANCELADA
+}
+
+model Transportadora {
+  id           String    @id @default(uuid())
+  nome         String
+  cnpj         String    @unique
+  email        String?
+  telefone     String?
+  endereco     String?
+  usuarios     Usuario[]
+  motoristas   Motorista[]
+  viagens      Viagem[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("transportadoras")
+}
+
+model Usuario {
+  id               String      @id @default(uuid())
+  email            String      @unique
+  senhaHash        String
+  role             Role
+  transportadoraId String?     // obrigatório para ADMIN_TRANSPORTADORA e MOTORISTA
+  transportadora   Transportadora? @relation(fields: [transportadoraId], references: [id])
+  motoristaId      String?     // obrigatório para MOTORISTA
+  motorista        Motorista?  @relation(fields: [motoristaId], references: [id])
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([transportadoraId])
+  @@index([motoristaId])
+  @@map("usuarios")
+}
+
+model Motorista {
+  id               String      @id @default(uuid())
+  nome             String
+  cpf              String      @unique
+  cnh              String
+  telefone         String
+  transportadoraId String
+  transportadora   Transportadora @relation(fields: [transportadoraId], references: [id])
+  usuarios         Usuario[]   // Motorista pode ter um ou mais usuários vinculados (caso queira suporte multi-login)
+  viagens          Viagem[]
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([transportadoraId])
+  @@map("motoristas")
+}
+
+model Viagem {
+  id               String      @id @default(uuid())
+  descricao        String
+  dataInicio       DateTime
+  dataFim          DateTime?
+  status           StatusViagem @default(PLANEJADA)
+  transportadoraId String
+  motoristaId      String
+  transportadora   Transportadora @relation(fields: [transportadoraId], references: [id])
+  motorista        Motorista      @relation(fields: [motoristaId], references: [id])
+  receitas         Receita[]
+  despesas         Despesa[]
+  acerto           Acerto?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([transportadoraId])
+  @@index([motoristaId])
+  @@index([status])
+  @@map("viagens")
+}
+
+model Receita {
+  id        String   @id @default(uuid())
+  viagemId  String
+  valor     Decimal  @db.Decimal(10, 2)
+  descricao String
+  viagem    Viagem   @relation(fields: [viagemId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([viagemId])
+  @@map("receitas")
+}
+
+model Despesa {
+  id        String   @id @default(uuid())
+  viagemId  String
+  valor     Decimal  @db.Decimal(10, 2)
+  descricao String
+  viagem    Viagem   @relation(fields: [viagemId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([viagemId])
+  @@map("despesas")
+}
+
+model Acerto {
+  id        String   @id @default(uuid())
+  viagemId  String   @unique
+  valor     Decimal  @db.Decimal(10, 2)
+  pago      Boolean  @default(false)
+  viagem    Viagem   @relation(fields: [viagemId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("acertos")
+}
