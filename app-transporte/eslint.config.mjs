@@ -18,6 +18,8 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      // Ignorar artefatos gerados do Prisma para evitar falsos positivos do ESLint
+      "src/generated/**",
     ],
   },
 ];

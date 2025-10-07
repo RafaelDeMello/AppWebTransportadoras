@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Layout } from '../../components/layout/Layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -21,108 +21,27 @@ import {
 interface ReceitaFormData {
   descricao: string
   valor: string
-  data: string
-  categoria: string
   viagem_id?: string
-  transportadora_id: string
 }
 
 interface Receita {
   id: string
   descricao: string
   valor: number
-  data: string
-  categoria: string
-  viagem_id?: string
-  viagem?: {
-    origem: string
-    destino: string
-  }
-  transportadora_id: string
-  transportadora?: {
-    nome: string
-  }
-  created_at: string
+  createdAt: string
+  viagemId: string
+  viagem?: { id: string; descricao: string }
 }
-
-const mockReceitas: Receita[] = [
-  {
-    id: '1',
-    descricao: 'Frete - São Paulo → Rio de Janeiro',
-    valor: 2500.00,
-    data: '2024-10-05',
-    categoria: 'FRETE',
-    viagem_id: '1',
-    viagem: {
-      origem: 'São Paulo',
-      destino: 'Rio de Janeiro'
-    },
-    transportadora_id: '1',
-    transportadora: {
-      nome: 'TransLog Express'
-    },
-    created_at: '2024-10-05T10:30:00Z'
-  },
-  {
-    id: '2',
-    descricao: 'Taxa de descarga',
-    valor: 350.00,
-    data: '2024-10-04',
-    categoria: 'TAXA',
-    transportadora_id: '1',
-    transportadora: {
-      nome: 'TransLog Express'
-    },
-    created_at: '2024-10-04T14:20:00Z'
-  },
-  {
-    id: '3',
-    descricao: 'Frete - Belo Horizonte → Salvador',
-    valor: 3200.00,
-    data: '2024-10-03',
-    categoria: 'FRETE',
-    viagem_id: '2',
-    viagem: {
-      origem: 'Belo Horizonte',
-      destino: 'Salvador'
-    },
-    transportadora_id: '1',
-    transportadora: {
-      nome: 'TransLog Express'
-    },
-    created_at: '2024-10-03T09:15:00Z'
-  },
-  {
-    id: '4',
-    descricao: 'Bônus por prazo',
-    valor: 500.00,
-    data: '2024-10-02',
-    categoria: 'BONUS',
-    transportadora_id: '1',
-    transportadora: {
-      nome: 'TransLog Express'
-    },
-    created_at: '2024-10-02T16:45:00Z'
-  }
-]
-
-const categorias = [
-  { value: 'FRETE', label: 'Frete', color: 'bg-blue-100 text-blue-800' },
-  { value: 'TAXA', label: 'Taxa', color: 'bg-green-100 text-green-800' },
-  { value: 'BONUS', label: 'Bônus', color: 'bg-purple-100 text-purple-800' },
-  { value: 'OUTROS', label: 'Outros', color: 'bg-gray-100 text-gray-800' }
-]
 
 export default function ReceitasPage() {
   const [receitas, setReceitas] = useState<Receita[]>([])
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedCategoria, setSelectedCategoria] = useState<string>('')
   const [showForm, setShowForm] = useState(false)
   const [editingReceita, setEditingReceita] = useState<Receita | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+    const [isLoading, setIsLoading] = useState(false)
   
   // Buscar dados da API
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchReceitas = async () => {
       setIsLoading(true);
       try {
@@ -146,16 +65,14 @@ export default function ReceitasPage() {
   // Filtros
   const filteredReceitas = receitas.filter(receita => {
     const matchesSearch = receita.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         receita.transportadora?.nome.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategoria = !selectedCategoria || receita.categoria === selectedCategoria
-    
-    return matchesSearch && matchesCategoria
+      receita.viagem?.descricao.toLowerCase().includes(searchTerm.toLowerCase())
+    return matchesSearch
   })
 
   // Estatísticas
   const totalReceitas = receitas.reduce((sum, receita) => sum + receita.valor, 0)
   const receitasDoMes = receitas.filter(receita => {
-    const dataReceita = new Date(receita.data)
+    const dataReceita = new Date(receita.createdAt)
     const hoje = new Date()
     return dataReceita.getMonth() === hoje.getMonth() && 
            dataReceita.getFullYear() === hoje.getFullYear()
@@ -173,20 +90,19 @@ export default function ReceitasPage() {
     return new Date(dateString).toLocaleDateString('pt-BR')
   }
 
-  const getCategoriaStyle = (categoria: string) => {
-    const cat = categorias.find(c => c.value === categoria)
-    return cat?.color || 'bg-gray-100 text-gray-800'
-  }
+  // Categoria removida; badge não é exibida
 
   const handleEdit = (receita: Receita) => {
     setEditingReceita(receita)
     setShowForm(true)
   }
 
-  const handleDelete = (id: string) => {
-    if (confirm('Tem certeza que deseja excluir esta receita?')) {
-      setReceitas(receitas.filter(receita => receita.id !== id))
-    }
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta receita?')) return
+    try {
+      const res = await fetch(`/api/receitas/${id}`, { method: 'DELETE' })
+      if (res.ok) setReceitas(prev => prev.filter(r => r.id !== id))
+    } catch (e) { console.error(e) }
   }
 
   const handleNewReceita = () => {
@@ -197,34 +113,33 @@ export default function ReceitasPage() {
   const handleSaveReceita = async (formData: ReceitaFormData) => {
     try {
       if (editingReceita) {
-        // Editar receita existente
-        const updatedReceita: Receita = {
-          ...editingReceita,
-          descricao: formData.descricao,
-          valor: parseFloat(formData.valor),
-          data: formData.data,
-          categoria: formData.categoria,
-          viagem_id: formData.viagem_id || undefined,
-          transportadora_id: formData.transportadora_id
+        const res = await fetch(`/api/receitas/${editingReceita.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            descricao: formData.descricao,
+            valor: parseFloat(formData.valor),
+            viagemId: formData.viagem_id,
+          })
+        })
+        if (res.ok) {
+          const updated = await res.json()
+          setReceitas(prev => prev.map(r => r.id === editingReceita.id ? updated : r))
         }
-        
-        setReceitas(receitas.map(receita => 
-          receita.id === editingReceita.id ? updatedReceita : receita
-        ))
       } else {
-        // Criar nova receita
-        const newReceita: Receita = {
-          id: Date.now().toString(),
-          descricao: formData.descricao,
-          valor: parseFloat(formData.valor),
-          data: formData.data,
-          categoria: formData.categoria,
-          viagem_id: formData.viagem_id || undefined,
-          transportadora_id: formData.transportadora_id,
-          created_at: new Date().toISOString()
+        const res = await fetch('/api/receitas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            descricao: formData.descricao,
+            valor: parseFloat(formData.valor),
+            viagemId: formData.viagem_id,
+          })
+        })
+        if (res.ok) {
+          const created = await res.json()
+          setReceitas(prev => [created, ...prev])
         }
-        
-        setReceitas([newReceita, ...receitas])
       }
       
       setShowForm(false)
@@ -243,6 +158,11 @@ export default function ReceitasPage() {
   return (
     <Layout>
       <div className="space-y-6">
+        {isLoading && (
+          <div className="flex justify-center py-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
+          </div>
+        )}
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -352,20 +272,7 @@ export default function ReceitasPage() {
                   />
                 </div>
               </div>
-              <div className="sm:w-48">
-                <select
-                  value={selectedCategoria}
-                  onChange={(e) => setSelectedCategoria(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
-                >
-                  <option value="" className="text-gray-900 bg-white">Todas as categorias</option>
-                  {categorias.map(categoria => (
-                    <option key={categoria.value} value={categoria.value} className="text-gray-900 bg-white">
-                      {categoria.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Filtro por categoria removido (não faz parte do schema) */}
               <Button variant="outline" size="sm">
                 <Filter className="mr-2 h-4 w-4" />
                 Mais Filtros
@@ -393,7 +300,7 @@ export default function ReceitasPage() {
                     Nenhuma receita encontrada
                   </h3>
                   <p className="mt-1 text-sm text-gray-500">
-                    {searchTerm || selectedCategoria 
+                    {searchTerm 
                       ? 'Tente ajustar os filtros de busca.' 
                       : 'Comece cadastrando uma nova receita.'}
                   </p>
@@ -407,16 +314,11 @@ export default function ReceitasPage() {
                     <div className="flex-1">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
                         <h3 className="font-medium text-gray-900">{receita.descricao}</h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoriaStyle(receita.categoria)}`}>
-                          {categorias.find(c => c.value === receita.categoria)?.label}
-                        </span>
+                        {/* Categoria removida do schema */}
                       </div>
                       <div className="text-sm text-gray-600 space-y-1">
-                        <p>Data: {formatDate(receita.data)}</p>
-                        <p>Transportadora: {receita.transportadora?.nome}</p>
-                        {receita.viagem && (
-                          <p>Viagem: {receita.viagem.origem} → {receita.viagem.destino}</p>
-                        )}
+                        <p>Data: {formatDate(receita.createdAt)}</p>
+                        {receita.viagem && <p>Viagem: {receita.viagem.descricao}</p>}
                       </div>
                     </div>
                     <div className="flex items-center justify-between sm:justify-end gap-4">
@@ -453,8 +355,14 @@ export default function ReceitasPage() {
       {/* Modal Form */}
       {showForm && (
         <ReceitaForm
-          receita={editingReceita}
-          onSave={handleSaveReceita}
+          receita={editingReceita as unknown as { descricao?: string; valor?: number; viagem_id?: string; viagemId?: string }}
+          onSave={async (data: { descricao: string; valor: string; viagem_id: string }) => {
+            await handleSaveReceita({
+              descricao: data.descricao,
+              valor: data.valor,
+              viagem_id: data.viagem_id,
+            })
+          }}
           onCancel={handleCancelForm}
         />
       )}

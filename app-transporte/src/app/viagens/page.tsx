@@ -11,7 +11,6 @@ import {
   Edit, 
   Trash2, 
   Truck, 
-  MapPin, 
   Calendar,
   DollarSign,
   Clock,
@@ -21,90 +20,25 @@ import {
 } from 'lucide-react'
 
 // Tipos
-interface Viagem {
+interface ViagemItem {
   id: string
-  origem: string
-  destino: string
-  distancia: number
+  descricao: string
   dataInicio: string
-  dataFim?: string
-  valorFrete: number
-  motoristaNome: string
-  transportadoraNome: string
-  status: 'PLANEJADA' | 'EM_ANDAMENTO' | 'CONCLUIDA' | 'CANCELADA'
+  dataFim?: string | null
+  status: 'PLANEJADA' | 'EM_ANDAMENTO' | 'FINALIZADA' | 'CANCELADA'
+  motorista?: { id: string; nome: string }
+  transportadora?: { id: string; nome: string }
+  totalReceitas?: number
+  totalDespesas?: number
+  lucro?: number
   createdAt: string
 }
 
-// Mock data
-const mockViagens: Viagem[] = [
-  {
-    id: '1',
-    origem: 'São Paulo - SP',
-    destino: 'Rio de Janeiro - RJ',
-    distancia: 435,
-    dataInicio: '2024-01-15',
-    dataFim: '2024-01-16',
-    valorFrete: 2500.00,
-    motoristaNome: 'João Silva Santos',
-    transportadoraNome: 'Transportes São Paulo Ltda',
-    status: 'CONCLUIDA',
-    createdAt: '2024-01-10'
-  },
-  {
-    id: '2',
-    origem: 'São Paulo - SP',
-    destino: 'Belo Horizonte - MG',
-    distancia: 586,
-    dataInicio: '2024-01-18',
-    valorFrete: 3200.00,
-    motoristaNome: 'Maria Santos Costa',
-    transportadoraNome: 'Transportes São Paulo Ltda',
-    status: 'EM_ANDAMENTO',
-    createdAt: '2024-01-15'
-  },
-  {
-    id: '3',
-    origem: 'Rio de Janeiro - RJ',
-    destino: 'Porto Alegre - RS',
-    distancia: 1553,
-    dataInicio: '2024-01-25',
-    valorFrete: 5800.00,
-    motoristaNome: 'Pedro Oliveira Lima',
-    transportadoraNome: 'Logística Rio Grande',
-    status: 'PLANEJADA',
-    createdAt: '2024-01-20'
-  },
-  {
-    id: '4',
-    origem: 'Belo Horizonte - MG',
-    destino: 'Salvador - BA',
-    distancia: 1372,
-    dataInicio: '2024-01-10',
-    valorFrete: 4500.00,
-    motoristaNome: 'Ana Paula Ferreira',
-    transportadoraNome: 'Express Minas Gerais',
-    status: 'CANCELADA',
-    createdAt: '2024-01-05'
-  },
-  {
-    id: '5',
-    origem: 'São Paulo - SP',
-    destino: 'Curitiba - PR',
-    distancia: 408,
-    dataInicio: '2024-01-22',
-    valorFrete: 2100.00,
-    motoristaNome: 'João Silva Santos',
-    transportadoraNome: 'Transportes São Paulo Ltda',
-    status: 'EM_ANDAMENTO',
-    createdAt: '2024-01-18'
-  }
-]
-
 export default function ViagensPage() {
-  const [viagens, setViagens] = useState<Viagem[]>([])
+  const [viagens, setViagens] = useState<ViagemItem[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState<'TODAS' | 'PLANEJADA' | 'EM_ANDAMENTO' | 'CONCLUIDA' | 'CANCELADA'>('TODAS')
+  const [statusFilter, setStatusFilter] = useState<'TODAS' | 'PLANEJADA' | 'EM_ANDAMENTO' | 'FINALIZADA' | 'CANCELADA'>('TODAS')
 
   // Carregar dados da API
   useEffect(() => {
@@ -114,43 +48,14 @@ export default function ViagensPage() {
         const response = await fetch('/api/viagens')
         if (response.ok) {
           const data = await response.json()
-          // Mapear os dados da API para o formato esperado
-          const mappedData = data.map((v: {
-            id: string;
-            descricao: string;
-            dataInicio: string;
-            dataFim?: string;
-            status: string;
-            motorista?: { id: string; nome: string };
-            transportadora?: { id: string; nome: string };
-            totalReceitas?: number;
-            totalDespesas?: number;
-            lucro?: number;
-            createdAt: string;
-          }) => ({
-            id: v.id,
-            origem: v.descricao.split(' - ')[0] || v.descricao,
-            destino: v.descricao.split(' - ')[1] || 'Destino',
-            dataInicio: new Date(v.dataInicio).toLocaleDateString('pt-BR'),
-            dataFim: v.dataFim ? new Date(v.dataFim).toLocaleDateString('pt-BR') : null,
-            status: v.status,
-            motoristaNome: v.motorista?.nome || 'N/A',
-            motoristaId: v.motorista?.id,
-            transportadoraNome: v.transportadora?.nome || 'N/A',
-            transportadoraId: v.transportadora?.id,
-            valorReceita: v.totalReceitas || 0,
-            valorDespesa: v.totalDespesas || 0,
-            lucro: v.lucro || 0,
-            createdAt: new Date(v.createdAt).toLocaleDateString('pt-BR')
-          }))
-          setViagens(mappedData)
+          setViagens(data)
         } else {
           console.error('Erro ao carregar viagens:', response.statusText)
-          setViagens(mockViagens)
+          setViagens([])
         }
       } catch (error) {
         console.error('Erro ao carregar viagens:', error)
-        setViagens(mockViagens)
+        setViagens([])
       } finally {
         setIsLoading(false)
       }
@@ -160,15 +65,13 @@ export default function ViagensPage() {
   }, [])
 
   // Filtrar viagens
-  const filteredViagens = viagens.filter(viagem => {
-    const matchesSearch = 
-      viagem.origem.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      viagem.destino.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      viagem.motoristaNome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      viagem.transportadoraNome.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesStatus = statusFilter === 'TODAS' || viagem.status === statusFilter
-    
+  const filteredViagens = viagens.filter((v) => {
+    const matchesSearch = (
+      v.descricao?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      v.motorista?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      v.transportadora?.nome?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    const matchesStatus = statusFilter === 'TODAS' || v.status === statusFilter
     return matchesSearch && matchesStatus
   })
 
@@ -176,9 +79,17 @@ export default function ViagensPage() {
     console.log('Editar viagem:', id)
   }
 
-  const handleDelete = (id: string) => {
-    if (confirm('Tem certeza que deseja excluir esta viagem?')) {
-      setViagens(prev => prev.filter(v => v.id !== id))
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta viagem?')) return
+    try {
+      const res = await fetch(`/api/viagens/${id}`, { method: 'DELETE' })
+      if (res.ok) setViagens((prev) => prev.filter((v) => v.id !== id))
+      else {
+        const err = await res.json().catch(() => ({}))
+        alert(err.error || 'Não foi possível excluir a viagem')
+      }
+    } catch (e) {
+      console.error(e)
     }
   }
 
@@ -192,7 +103,7 @@ export default function ViagensPage() {
         return 'text-blue-600 bg-blue-100'
       case 'EM_ANDAMENTO':
         return 'text-orange-600 bg-orange-100'
-      case 'CONCLUIDA':
+      case 'FINALIZADA':
         return 'text-green-600 bg-green-100'
       case 'CANCELADA':
         return 'text-red-600 bg-red-100'
@@ -207,7 +118,7 @@ export default function ViagensPage() {
         return <Calendar className="h-4 w-4" />
       case 'EM_ANDAMENTO':
         return <Clock className="h-4 w-4" />
-      case 'CONCLUIDA':
+      case 'FINALIZADA':
         return <CheckCircle className="h-4 w-4" />
       case 'CANCELADA':
         return <AlertCircle className="h-4 w-4" />
@@ -222,8 +133,8 @@ export default function ViagensPage() {
         return 'Planejada'
       case 'EM_ANDAMENTO':
         return 'Em Andamento'
-      case 'CONCLUIDA':
-        return 'Concluída'
+      case 'FINALIZADA':
+        return 'Finalizada'
       case 'CANCELADA':
         return 'Cancelada'
       default:
@@ -236,10 +147,9 @@ export default function ViagensPage() {
       total: viagens.length,
       planejadas: viagens.filter(v => v.status === 'PLANEJADA').length,
       emAndamento: viagens.filter(v => v.status === 'EM_ANDAMENTO').length,
-      concluidas: viagens.filter(v => v.status === 'CONCLUIDA').length,
-      valorTotal: viagens
-        .filter(v => v.status === 'CONCLUIDA')
-        .reduce((acc, v) => acc + v.valorFrete, 0)
+      finalizadas: viagens.filter(v => v.status === 'FINALIZADA').length,
+      faturamento: viagens.reduce((acc, v) => acc + (v.totalReceitas || 0), 0),
+      lucro: viagens.reduce((acc, v) => acc + (v.lucro || 0), 0),
     }
   }
 
@@ -290,14 +200,14 @@ export default function ViagensPage() {
                 />
               </div>
               <div className="flex gap-2 flex-wrap">
-                {(['TODAS', 'PLANEJADA', 'EM_ANDAMENTO', 'CONCLUIDA', 'CANCELADA'] as const).map((status) => (
+                {(['TODAS', 'PLANEJADA', 'EM_ANDAMENTO', 'FINALIZADA', 'CANCELADA'] as const).map((status) => (
                   <Button
                     key={status}
                     variant={statusFilter === status ? "default" : "outline"}
                     size="sm"
                     onClick={() => setStatusFilter(status)}
                   >
-                    {getStatusText(status === 'TODAS' ? 'TODAS' : status).replace('Concluída', 'Concluídas')}
+                    {getStatusText(status === 'TODAS' ? 'TODAS' : status)}
                   </Button>
                 ))}
               </div>
@@ -347,8 +257,8 @@ export default function ViagensPage() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Concluídas</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.concluidas}</p>
+                  <p className="text-sm font-medium text-gray-600">Finalizadas</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.finalizadas}</p>
                 </div>
                 <CheckCircle className="h-8 w-8 text-green-600" />
               </div>
@@ -360,9 +270,20 @@ export default function ViagensPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Faturamento</p>
-                  <p className="text-lg font-bold text-emerald-600">{formatCurrency(stats.valorTotal)}</p>
+                  <p className="text-lg font-bold text-emerald-600">{formatCurrency(stats.faturamento)}</p>
                 </div>
                 <DollarSign className="h-8 w-8 text-emerald-600" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Lucro</p>
+                  <p className="text-lg font-bold text-emerald-700">{formatCurrency(stats.lucro)}</p>
+                </div>
+                <DollarSign className="h-8 w-8 text-emerald-700" />
               </div>
             </CardContent>
           </Card>
@@ -385,7 +306,7 @@ export default function ViagensPage() {
                     <div className="flex-1">
                       <CardTitle className="text-lg flex items-center gap-2">
                         <RouteIcon className="h-5 w-5 text-blue-600" />
-                        {viagem.origem} → {viagem.destino}
+                        {viagem.descricao}
                       </CardTitle>
                       <CardDescription className="flex items-center gap-1 mt-1">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${getStatusColor(viagem.status)}`}>
@@ -418,15 +339,16 @@ export default function ViagensPage() {
                 <CardContent className="space-y-3">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <MapPin className="h-4 w-4" />
-                      <span>{viagem.distancia} km</span>
+                      <DollarSign className="h-4 w-4" />
+                      <span>Receitas: <span className="font-semibold text-emerald-600">{formatCurrency(viagem.totalReceitas || 0)}</span></span>
                     </div>
-                    
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <DollarSign className="h-4 w-4" />
-                      <span className="font-semibold text-green-600">
-                        {formatCurrency(viagem.valorFrete)}
-                      </span>
+                      <span>Despesas: <span className="font-semibold text-red-600">{formatCurrency(viagem.totalDespesas || 0)}</span></span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <DollarSign className="h-4 w-4" />
+                      <span>Lucro: <span className={`font-semibold ${ (viagem.lucro || 0) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{formatCurrency(viagem.lucro || 0)}</span></span>
                     </div>
                   </div>
 
@@ -439,8 +361,8 @@ export default function ViagensPage() {
                   </div>
                   
                   <div className="text-sm text-gray-600">
-                    <p><strong>Motorista:</strong> {viagem.motoristaNome}</p>
-                    <p><strong>Transportadora:</strong> {viagem.transportadoraNome}</p>
+                    <p><strong>Motorista:</strong> {viagem.motorista?.nome || 'N/A'}</p>
+                    <p><strong>Transportadora:</strong> {viagem.transportadora?.nome || 'N/A'}</p>
                   </div>
 
                   {viagem.status === 'PLANEJADA' && (
@@ -449,7 +371,19 @@ export default function ViagensPage() {
                         variant="default"
                         size="sm"
                         className="w-full"
-                        onClick={() => console.log('Iniciar viagem:', viagem.id)}
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/viagens/${viagem.id}`, {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ status: 'EM_ANDAMENTO' })
+                            })
+                            if (res.ok) {
+                              const updated = await res.json()
+                              setViagens(prev => prev.map(v => v.id === viagem.id ? updated : v))
+                            }
+                          } catch (e) { console.error(e) }
+                        }}
                       >
                         <Clock className="mr-2 h-4 w-4" />
                         Iniciar Viagem
@@ -463,7 +397,19 @@ export default function ViagensPage() {
                         variant="default"
                         size="sm"
                         className="w-full bg-green-600 hover:bg-green-700"
-                        onClick={() => console.log('Finalizar viagem:', viagem.id)}
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/viagens/${viagem.id}`, {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ status: 'FINALIZADA', dataFim: new Date().toISOString() })
+                            })
+                            if (res.ok) {
+                              const updated = await res.json()
+                              setViagens(prev => prev.map(v => v.id === viagem.id ? updated : v))
+                            }
+                          } catch (e) { console.error(e) }
+                        }}
                       >
                         <CheckCircle className="mr-2 h-4 w-4" />
                         Finalizar Viagem
@@ -487,8 +433,7 @@ export default function ViagensPage() {
               <p className="text-gray-600 mb-4">
                 {searchTerm || statusFilter !== 'TODAS'
                   ? 'Tente ajustar os filtros de busca'
-                  : 'Comece adicionando sua primeira viagem'
-                }
+                  : 'Comece adicionando sua primeira viagem'}
               </p>
               {!searchTerm && statusFilter === 'TODAS' && (
                 <Button onClick={handleAdd}>

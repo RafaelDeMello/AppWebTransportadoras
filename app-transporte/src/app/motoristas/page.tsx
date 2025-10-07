@@ -101,12 +101,7 @@ const mockMotoristas: Motorista[] = [
   }
 ]
 
-// Mock transportadoras
-const mockTransportadoras = [
-  { id: 'transp1', nomeFantasia: 'Transportes São Paulo Ltda' },
-  { id: 'transp2', nomeFantasia: 'Logística Rio Grande' },
-  { id: 'transp3', nomeFantasia: 'Express Minas Gerais' }
-]
+// Removido mock de transportadoras: o formulário buscará da API quando necessário
 
 export default function MotoristasPage() {
   const [motoristas, setMotoristas] = useState<Motorista[]>([])
@@ -538,7 +533,6 @@ export default function MotoristasPage() {
           endereco: '',
           dataNascimento: ''
         } : undefined}
-        transportadoras={mockTransportadoras}
       />
     </Layout>
   )

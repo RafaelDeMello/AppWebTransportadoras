@@ -100,6 +100,7 @@ export function Layout({ children }: LayoutProps) {
                   variant="outline"
                   size="sm"
                   className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
+                  onClick={() => router.push('/logout')}
                 >
                   <LogOut className="h-4 w-4" />
                   <span className="hidden xl:inline ml-2">Sair</span>
@@ -169,6 +170,7 @@ export function Layout({ children }: LayoutProps) {
               variant="outline"
               size="sm"
               className="w-full border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
+              onClick={() => router.push('/logout')}
             >
               <LogOut className="mr-2 h-4 w-4" />
               Sair

@@ -24,36 +24,15 @@ interface Despesa {
   id: string
   descricao: string
   valor: number
-  data: string
-  categoria: string
-  viagem_id?: string
-  viagem?: {
-    origem: string
-    destino: string
-  }
-  transportadora_id: string
-  transportadora?: {
-    nome: string
-  }
-  fornecedor?: string
-  created_at: string
+  createdAt: string
+  viagemId: string
+  viagem?: { id: string; descricao: string }
 }
-
-const categorias = [
-  { value: 'COMBUSTIVEL', label: 'Combustível', color: 'bg-red-100 text-red-800' },
-  { value: 'MANUTENCAO', label: 'Manutenção', color: 'bg-orange-100 text-orange-800' },
-  { value: 'PEDAGIO', label: 'Pedágio', color: 'bg-blue-100 text-blue-800' },
-  { value: 'HOSPEDAGEM', label: 'Hospedagem', color: 'bg-purple-100 text-purple-800' },
-  { value: 'ALIMENTACAO', label: 'Alimentação', color: 'bg-green-100 text-green-800' },
-  { value: 'SEGURO', label: 'Seguro', color: 'bg-indigo-100 text-indigo-800' },
-  { value: 'MULTA', label: 'Multa', color: 'bg-red-100 text-red-800' },
-  { value: 'OUTROS', label: 'Outros', color: 'bg-gray-100 text-gray-800' }
-]
 
 export default function DespesasPage() {
   const [despesas, setDespesas] = useState<Despesa[]>([])
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedCategoria, setSelectedCategoria] = useState<string>('')
+  const [selectedCategoria] = useState<string>('')
   const [showForm, setShowForm] = useState(false)
   const [editingDespesa, setEditingDespesa] = useState<Despesa | null>(null)
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -73,8 +52,10 @@ export default function DespesasPage() {
     async function fetchDespesas() {
       try {
         const res = await fetch('/api/despesas')
-        const data = await res.json()
-        setDespesas(data)
+        if (res.ok) {
+          const data = await res.json()
+          setDespesas(data)
+        }
       } catch (error) {
         console.error('Erro ao buscar despesas:', error)
       }
@@ -85,17 +66,14 @@ export default function DespesasPage() {
   // Filtros
   const filteredDespesas = despesas.filter(despesa => {
     const matchesSearch = despesa.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         despesa.transportadora?.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (despesa.fornecedor && despesa.fornecedor.toLowerCase().includes(searchTerm.toLowerCase()))
-    const matchesCategoria = !selectedCategoria || despesa.categoria === selectedCategoria
-    
-    return matchesSearch && matchesCategoria
+      despesa.viagem?.descricao.toLowerCase().includes(searchTerm.toLowerCase())
+    return matchesSearch
   })
 
   // Estatísticas
   const totalDespesas = despesas.reduce((sum, despesa) => sum + despesa.valor, 0)
   const despesasDoMes = despesas.filter(despesa => {
-    const dataDespesa = new Date(despesa.data)
+    const dataDespesa = new Date(despesa.createdAt)
     const hoje = new Date()
     return dataDespesa.getMonth() === hoje.getMonth() && 
            dataDespesa.getFullYear() === hoje.getFullYear()
@@ -103,13 +81,7 @@ export default function DespesasPage() {
   const totalMes = despesasDoMes.reduce((sum, despesa) => sum + despesa.valor, 0)
 
   // Categoria com maior gasto
-  const gastosPorCategoria = despesas.reduce((acc, despesa) => {
-    acc[despesa.categoria] = (acc[despesa.categoria] || 0) + despesa.valor
-    return acc
-  }, {} as Record<string, number>)
-  
-  const categoriaMaiorGasto = Object.entries(gastosPorCategoria)
-    .sort(([,a], [,b]) => b - a)[0]
+  // Categoria removida do schema; manter métricas simples
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -122,15 +94,7 @@ export default function DespesasPage() {
     return new Date(dateString).toLocaleDateString('pt-BR')
   }
 
-  const getCategoriaStyle = (categoria: string) => {
-    const cat = categorias.find(c => c.value === categoria)
-    return cat?.color || 'bg-gray-100 text-gray-800'
-  }
-
-  const getCategoriaLabel = (categoria: string) => {
-    const cat = categorias.find(c => c.value === categoria)
-    return cat?.label || categoria
-  }
+  // Categoria removida; sem badge
 
   const handleEdit = (despesa: Despesa) => {
     setEditingDespesa(despesa)
@@ -143,8 +107,11 @@ export default function DespesasPage() {
       isOpen: true,
       title: 'Excluir Despesa',
       description: `Tem certeza que deseja excluir a despesa "${despesa?.descricao}"? Esta ação não pode ser desfeita.`,
-      onConfirm: () => {
-        setDespesas(despesas.filter(despesa => despesa.id !== id))
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/despesas/${id}`, { method: 'DELETE' })
+          if (res.ok) setDespesas(prev => prev.filter(d => d.id !== id))
+        } catch (e) { console.error(e) }
       }
     })
   }
@@ -161,36 +128,33 @@ export default function DespesasPage() {
   const handleSaveDespesa = async (formData: DespesaFormData) => {
     try {
       if (editingDespesa) {
-        // Editar despesa existente
-        const updatedDespesa: Despesa = {
-          ...editingDespesa,
-          descricao: formData.descricao,
-          valor: parseFloat(formData.valor),
-          data: formData.data,
-          categoria: formData.categoria,
-          viagem_id: formData.viagem_id || undefined,
-          transportadora_id: formData.transportadora_id,
-          fornecedor: formData.fornecedor
+        const res = await fetch(`/api/despesas/${editingDespesa.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            descricao: formData.descricao,
+            valor: parseFloat(formData.valor),
+            viagemId: formData.viagem_id,
+          })
+        })
+        if (res.ok) {
+          const updated = await res.json()
+          setDespesas(prev => prev.map(d => d.id === editingDespesa.id ? updated : d))
         }
-        
-        setDespesas(despesas.map(despesa => 
-          despesa.id === editingDespesa.id ? updatedDespesa : despesa
-        ))
       } else {
-        // Criar nova despesa
-        const newDespesa: Despesa = {
-          id: Date.now().toString(),
-          descricao: formData.descricao,
-          valor: parseFloat(formData.valor),
-          data: formData.data,
-          categoria: formData.categoria,
-          viagem_id: formData.viagem_id || undefined,
-          transportadora_id: formData.transportadora_id,
-          fornecedor: formData.fornecedor,
-          created_at: new Date().toISOString()
+        const res = await fetch('/api/despesas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            descricao: formData.descricao,
+            valor: parseFloat(formData.valor),
+            viagemId: formData.viagem_id,
+          })
+        })
+        if (res.ok) {
+          const created = await res.json()
+          setDespesas(prev => [created, ...prev])
         }
-        
-        setDespesas([newDespesa, ...despesas])
       }
       
       setShowForm(false)
@@ -285,17 +249,15 @@ export default function DespesasPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
-                Maior Categoria
+                Maior Despesa
               </CardTitle>
               <AlertTriangle className="h-4 w-4 text-gray-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-gray-900">
-                {categoriaMaiorGasto ? formatCurrency(categoriaMaiorGasto[1]) : 'N/A'}
+                {despesas.length > 0 ? formatCurrency(Math.max(...despesas.map(d => d.valor))) : 'N/A'}
               </div>
-              <p className="text-xs text-gray-600 mt-1">
-                {categoriaMaiorGasto ? getCategoriaLabel(categoriaMaiorGasto[0]) : 'Nenhuma despesa'}
-              </p>
+              <p className="text-xs text-gray-600 mt-1">Maior valor registrado</p>
             </CardContent>
           </Card>
         </div>
@@ -318,20 +280,7 @@ export default function DespesasPage() {
                   />
                 </div>
               </div>
-              <div className="sm:w-48">
-                <select
-                  value={selectedCategoria}
-                  onChange={(e) => setSelectedCategoria(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
-                >
-                  <option value="" className="text-gray-900 bg-white">Todas as categorias</option>
-                  {categorias.map(categoria => (
-                    <option key={categoria.value} value={categoria.value} className="text-gray-900 bg-white">
-                      {categoria.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Filtro por categoria removido (não faz parte do schema) */}
               <Button variant="outline" size="sm">
                 <Filter className="mr-2 h-4 w-4" />
                 Mais Filtros
@@ -373,18 +322,12 @@ export default function DespesasPage() {
                     <div className="flex-1">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
                         <h3 className="font-medium text-gray-900">{despesa.descricao}</h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoriaStyle(despesa.categoria)}`}>
-                          {getCategoriaLabel(despesa.categoria)}
-                        </span>
+                        {/* Categoria removida */}
                       </div>
                       <div className="text-sm text-gray-600 space-y-1">
-                        <p>Data: {formatDate(despesa.data)}</p>
-                        <p>Transportadora: {despesa.transportadora?.nome}</p>
-                        {despesa.fornecedor && (
-                          <p>Fornecedor: {despesa.fornecedor}</p>
-                        )}
+                        <p>Data: {formatDate(despesa.createdAt)}</p>
                         {despesa.viagem && (
-                          <p>Viagem: {despesa.viagem.origem} → {despesa.viagem.destino}</p>
+                          <p>Viagem: {despesa.viagem.descricao}</p>
                         )}
                       </div>
                     </div>
@@ -422,8 +365,20 @@ export default function DespesasPage() {
       {/* Modal Form */}
       {showForm && (
         <DespesaForm
-          despesa={editingDespesa}
-          onSave={handleSaveDespesa}
+          despesa={editingDespesa as unknown as {
+            id: string
+            descricao: string
+            valor: number
+            data: string
+            categoria: string
+            viagem_id?: string
+            transportadora_id: string
+            fornecedor?: string
+            created_at: string
+          }}
+          onSave={async (data: DespesaFormData) => {
+            await handleSaveDespesa(data)
+          }}
           onCancel={handleCancelForm}
         />
       )}
