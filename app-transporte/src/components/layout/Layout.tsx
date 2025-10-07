@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { 
   Truck, 
@@ -39,6 +39,7 @@ const navigation: NavigationItem[] = [
 
 export function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [userInfo, setUserInfo] = useState<{ email: string; role: string; nome?: string } | null>(null)
   const pathname = usePathname()
   const router = useRouter()
 
@@ -48,6 +49,27 @@ export function Layout({ children }: LayoutProps) {
   }
 
   const currentPage = navigation.find(item => item.href === pathname)
+
+  useEffect(() => {
+    const loadMe = async () => {
+      try {
+        const res = await fetch('/api/auth/me', { cache: 'no-store' })
+        if (res.ok) {
+          const me = await res.json()
+          setUserInfo({
+            email: me.email,
+            role: me.role,
+            nome: me.motorista?.nome || me.transportadora?.nome,
+          })
+        } else {
+          setUserInfo(null)
+        }
+      } catch {
+        setUserInfo(null)
+      }
+    }
+    loadMe()
+  }, [])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -92,8 +114,8 @@ export function Layout({ children }: LayoutProps) {
                     <User className="h-4 w-4 text-slate-300" />
                   </div>
                   <div className="hidden xl:block">
-                    <p className="text-sm font-medium text-white">Rafael de Mello</p>
-                    <p className="text-xs text-slate-400">Administrador</p>
+                    <p className="text-sm font-medium text-white">{userInfo?.nome || userInfo?.email || 'Usuário'}</p>
+                    <p className="text-xs text-slate-400">{userInfo?.role === 'MOTORISTA' ? 'Motorista' : userInfo?.role ? 'Administrador' : ''}</p>
                   </div>
                 </div>
                 <Button
@@ -162,8 +184,8 @@ export function Layout({ children }: LayoutProps) {
                 <User className="h-5 w-5 text-slate-300" />
               </div>
               <div>
-                <p className="text-sm font-medium text-white">Rafael de Mello</p>
-                <p className="text-xs text-slate-400">Administrador</p>
+                <p className="text-sm font-medium text-white">{userInfo?.nome || userInfo?.email || 'Usuário'}</p>
+                <p className="text-xs text-slate-400">{userInfo?.role === 'MOTORISTA' ? 'Motorista' : userInfo?.role ? 'Administrador' : ''}</p>
               </div>
             </div>
             <Button

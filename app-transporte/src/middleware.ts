@@ -9,7 +9,10 @@ export async function middleware(request: NextRequest) {
   const publicPaths = [
     '/login',
     '/register',
+    '/forgot-password',
+    '/reset-password',
     '/favicon.ico',
+    '/api/transportadoras',
   ]
   const isPublic = publicPaths.some((p) => pathname.startsWith(p)) ||
     pathname.startsWith('/api/auth') ||

@@ -1,227 +1,127 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
+import { MotoristaForm } from '@/components/forms/MotoristaForm'
 import { Layout } from '../../components/layout/Layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  Truck, 
-  Users, 
-  Route,
-  Plus,
-  Calendar,
-  BarChart3
-} from 'lucide-react'
+import { Users } from 'lucide-react'
 
-// Mock data - posteriormente virá da API
-const dashboardData = {
-  stats: {
-    totalReceitas: 45230.50,
-    totalDespesas: 12480.30,
-    lucroMes: 32750.20,
-    viagensAtivas: 8,
-    totalMotoristas: 12,
-    viagensFinalizadas: 156
-  },
-  recentTrips: [
-    { id: '1', destino: 'São Paulo → Rio de Janeiro', motorista: 'João Silva', status: 'EM_ANDAMENTO', valor: 2500 },
-    { id: '2', destino: 'Belo Horizonte → Salvador', motorista: 'Maria Santos', status: 'FINALIZADA', valor: 3200 },
-    { id: '3', destino: 'Curitiba → Florianópolis', motorista: 'Pedro Costa', status: 'PLANEJADA', valor: 1800 },
-  ]
-}
-
-const StatCard = ({ title, value, icon: Icon, trend, trendValue }: {
-  title: string
-  value: string | number
-  icon: React.ComponentType<{ className?: string }>
-  trend?: 'up' | 'down'
-  trendValue?: string
-}) => (
-  <Card>
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium text-gray-600">
-        {title}
-      </CardTitle>
-      <Icon className="h-4 w-4 text-gray-400" />
-    </CardHeader>
-    <CardContent>
-      <div className="text-2xl font-bold text-gray-900">
-        {typeof value === 'number' ? value.toLocaleString('pt-BR') : value}
-      </div>
-      {trend && trendValue && (
-        <p className="text-xs text-gray-600 flex items-center mt-1">
-          {trend === 'up' ? (
-            <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
-          ) : (
-            <TrendingDown className="h-3 w-3 text-red-500 mr-1" />
-          )}
-          {trendValue} em relação ao mês anterior
-        </p>
-      )}
-    </CardContent>
-  </Card>
-)
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'EM_ANDAMENTO': return 'bg-blue-100 text-blue-800'
-    case 'FINALIZADA': return 'bg-green-100 text-green-800'
-    case 'PLANEJADA': return 'bg-yellow-100 text-yellow-800'
-    default: return 'bg-gray-100 text-gray-800'
-  }
-}
-
-const getStatusLabel = (status: string) => {
-  switch (status) {
-    case 'EM_ANDAMENTO': return 'Em Andamento'
-    case 'FINALIZADA': return 'Finalizada'
-    case 'PLANEJADA': return 'Planejada'
-    default: return status
-  }
-}
 
 export default function Dashboard() {
-  const { stats, recentTrips } = dashboardData
+  // ...
+  const [motoristaFormOpen, setMotoristaFormOpen] = useState(false)
+  const [codigoGerado, setCodigoGerado] = useState<string | null>(null)
+  const [transportadoraId, setTransportadoraId] = useState<string>('')
+
+  // Função para cadastrar motorista
+  interface MotoristaFormData {
+    nome: string
+    cpf: string
+    cnh: string
+    telefone?: string
+    endereco?: string
+    dataNascimento?: string
+    transportadoraId: string
+    status: 'ATIVO' | 'INATIVO'
+  }
+
+  async function handleCadastrarMotorista(data: MotoristaFormData) {
+    // Garante que o transportadoraId está preenchido corretamente
+    const dataComTransportadora = {
+      ...data,
+      transportadoraId: transportadoraId || data.transportadoraId || '',
+    }
+    try {
+      const res = await fetch('/api/motoristas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataComTransportadora),
+      })
+      if (res.ok) {
+        const motorista = await res.json()
+        setCodigoGerado(motorista.codigoValidacao)
+        alert('Motorista cadastrado com sucesso!')
+      } else {
+        const erro = await res.json().catch(() => ({}))
+        alert(erro.error || 'Erro ao cadastrar motorista')
+        setCodigoGerado('Erro ao cadastrar motorista')
+      }
+    } catch (err) {
+      alert('Erro ao cadastrar motorista')
+      setCodigoGerado('Erro ao cadastrar motorista')
+    }
+    setMotoristaFormOpen(false)
+  }
+
+  // Busca o transportadoraId do usuário logado ao abrir o formulário
+  React.useEffect(() => {
+    if (motoristaFormOpen) {
+      fetch('/api/auth/me')
+        .then(res => {
+          if (!res.ok) {
+            alert('Erro ao buscar dados do usuário. Faça login novamente ou verifique seu vínculo com a transportadora.');
+            setTransportadoraId('');
+            return null;
+          }
+          return res.json();
+        })
+        .then(data => {
+          if (data?.transportadora?.id) {
+            setTransportadoraId(data.transportadora.id)
+          } else {
+            setTransportadoraId('')
+            alert('Usuário não está vinculado a uma transportadora. Cadastro de motorista não permitido!');
+          }
+        })
+        .catch(() => {
+          setTransportadoraId('');
+          alert('Erro ao buscar dados do usuário. Faça login novamente ou verifique seu vínculo com a transportadora.');
+        })
+    }
+  }, [motoristaFormOpen])
 
   return (
     <Layout>
-          <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-              Dashboard
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Visão geral da sua transportadora
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Button size="sm" className="sm:size-default">
-              <Calendar className="mr-2 h-4 w-4" />
-              Relatório Mensal
-            </Button>
-            <Button size="sm" className="sm:size-default">
-              <Plus className="mr-2 h-4 w-4" />
-              Nova Viagem
-            </Button>
-          </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-          <StatCard
-            title="Receitas do Mês"
-            value={`R$ ${stats.totalReceitas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-            icon={DollarSign}
-            trend="up"
-            trendValue="+12.5%"
-          />
-          <StatCard
-            title="Despesas do Mês"
-            value={`R$ ${stats.totalDespesas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-            icon={TrendingDown}
-            trend="down"
-            trendValue="-3.2%"
-          />
-          <StatCard
-            title="Lucro do Mês"
-            value={`R$ ${stats.lucroMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-            icon={TrendingUp}
-            trend="up"
-            trendValue="+18.7%"
-          />
-        </div>
-
-        {/* Segunda linha de estatísticas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-          <StatCard
-            title="Viagens Ativas"
-            value={stats.viagensAtivas}
-            icon={Route}
-          />
-          <StatCard
-            title="Total Motoristas"
-            value={stats.totalMotoristas}
-            icon={Users}
-          />
-          <StatCard
-            title="Viagens Finalizadas"
-            value={stats.viagensFinalizadas}
-            icon={Truck}
-            trend="up"
-            trendValue="+8"
-          />
-        </div>
-
-        {/* Main Content Grid */}
+      <div className="space-y-6">
+        {/* ...existing code... */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Recent Trips */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Viagens Recentes</CardTitle>
-                <Button variant="outline" size="sm">
-                  Ver Todas
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {recentTrips.map((trip) => (
-                  <div key={trip.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 rounded-lg gap-2">
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900 text-sm sm:text-base">
-                        {trip.destino}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {trip.motorista}
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-between sm:justify-end gap-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(trip.status)}`}>
-                        {getStatusLabel(trip.status)}
-                      </span>
-                      <span className="font-medium text-green-600 text-sm">
-                        R$ {trip.valor.toLocaleString('pt-BR')}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions */}
+          {/* ...existing code... */}
           <Card>
             <CardHeader>
               <CardTitle>Ações Rápidas</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Button variant="outline" className="h-auto p-4 flex-col">
-                  <Route className="h-6 w-6 mb-2" />
-                  <span className="text-sm">Nova Viagem</span>
-                </Button>
-                <Button variant="outline" className="h-auto p-4 flex-col">
+                {/* ...existing code... */}
+                <Button variant="outline" className="h-auto p-4 flex-col" onClick={() => setMotoristaFormOpen(true)}>
                   <Users className="h-6 w-6 mb-2" />
                   <span className="text-sm">Cadastrar Motorista</span>
                 </Button>
-                <Button variant="outline" className="h-auto p-4 flex-col">
-                  <DollarSign className="h-6 w-6 mb-2" />
-                  <span className="text-sm">Adicionar Receita</span>
-                </Button>
-                <Button variant="outline" className="h-auto p-4 flex-col">
-                  <BarChart3 className="h-6 w-6 mb-2" />
-                  <span className="text-sm">Ver Relatórios</span>
-                </Button>
+                {/* ...existing code... */}
               </div>
             </CardContent>
           </Card>
         </div>
+        {/* Formulário de motorista (modal) */}
+        {motoristaFormOpen && (
+          <MotoristaForm
+            isOpen={motoristaFormOpen}
+            onClose={() => setMotoristaFormOpen(false)}
+            onSubmit={handleCadastrarMotorista}
+            transportadoraId={transportadoraId} // Passa apenas o transportadoraId
+          />
+        )}
+        {/* Modal do código gerado */}
+        {codigoGerado && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+              <h2 className="text-xl font-bold mb-4">Código de Validação do Motorista</h2>
+              <p className="text-2xl font-mono text-blue-700 mb-4">{codigoGerado}</p>
+              <Button className="w-full" onClick={() => setCodigoGerado(null)}>Fechar</Button>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   )

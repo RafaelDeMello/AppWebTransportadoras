@@ -1,3 +1,6 @@
+input, select, textarea {
+  color: #000 !important;
+}
 @import "tailwindcss";
 
 :root {

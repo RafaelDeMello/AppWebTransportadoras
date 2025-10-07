@@ -35,7 +35,7 @@ model Transportadora {
   telefone     String?
   endereco     String?
   usuarios     Usuario[]
-  motoristas   Motorista[]
+  motoristas   Motorista[] // Inicialmente vazio, só será preenchido por cadastros reais
   viagens      Viagem[]
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -67,6 +67,7 @@ model Motorista {
   cpf              String      @unique
   cnh              String
   telefone         String
+  codigoValidacao  String      @unique
   transportadoraId String
   transportadora   Transportadora @relation(fields: [transportadoraId], references: [id])
   usuarios         Usuario[]   // Motorista pode ter um ou mais usuários vinculados (caso queira suporte multi-login)

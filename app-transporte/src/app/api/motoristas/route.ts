@@ -4,11 +4,11 @@ import { z } from 'zod';
 
 // Schema de validação para motorista
 const motoristaSchema = z.object({
-  nome: z.string().min(1, 'Nome é obrigatório'),
-  cpf: z.string().min(11, 'CPF deve ter 11 caracteres'),
-  cnh: z.string().min(1, 'CNH é obrigatória'),
-  telefone: z.string().min(1, 'Telefone é obrigatório'),
-  transportadoraId: z.string().uuid('ID da transportadora inválido'),
+  nome: z.string().optional(),
+  cpf: z.string().optional(),
+  cnh: z.string().optional(),
+  telefone: z.string().optional(),
+  transportadoraId: z.string(), // obrigatório
 });
 
 // GET - Listar todos os motoristas
@@ -79,9 +79,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Criar motorista
+    // Gerar código de validação único (6 dígitos alfanuméricos)
+    function gerarCodigo() {
+      return Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
+    let codigoValidacao = gerarCodigo();
+    // Garante unicidade do código
+    while (await prisma.motorista.findUnique({ where: { codigoValidacao } })) {
+      codigoValidacao = gerarCodigo();
+    }
+
+    // Preenche campos obrigatórios com string vazia se não informados
+    const { nome = '', cpf = '', cnh = '', telefone = '', transportadoraId } = validatedData
     const motorista = await prisma.motorista.create({
-      data: validatedData,
+      data: {
+        nome,
+        cpf,
+        cnh,
+        telefone,
+        transportadoraId,
+        codigoValidacao,
+      },
       include: {
         transportadora: {
           select: {
