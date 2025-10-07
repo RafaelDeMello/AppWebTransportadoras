@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Layout } from '../../components/layout/Layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -39,88 +39,6 @@ interface Despesa {
   created_at: string
 }
 
-const mockDespesas: Despesa[] = [
-  {
-    id: '1',
-    descricao: 'Combustível - Posto Shell',
-    valor: 850.00,
-    data: '2024-10-05',
-    categoria: 'COMBUSTIVEL',
-    viagem_id: '1',
-    viagem: {
-      origem: 'São Paulo',
-      destino: 'Rio de Janeiro'
-    },
-    transportadora_id: '1',
-    transportadora: {
-      nome: 'TransLog Express'
-    },
-    fornecedor: 'Posto Shell',
-    created_at: '2024-10-05T14:30:00Z'
-  },
-  {
-    id: '2',
-    descricao: 'Manutenção preventiva',
-    valor: 1200.00,
-    data: '2024-10-04',
-    categoria: 'MANUTENCAO',
-    transportadora_id: '1',
-    transportadora: {
-      nome: 'TransLog Express'
-    },
-    fornecedor: 'Oficina Central',
-    created_at: '2024-10-04T09:15:00Z'
-  },
-  {
-    id: '3',
-    descricao: 'Pedágio - Via Dutra',
-    valor: 120.50,
-    data: '2024-10-03',
-    categoria: 'PEDAGIO',
-    viagem_id: '1',
-    viagem: {
-      origem: 'São Paulo',
-      destino: 'Rio de Janeiro'
-    },
-    transportadora_id: '1',
-    transportadora: {
-      nome: 'TransLog Express'
-    },
-    created_at: '2024-10-03T16:20:00Z'
-  },
-  {
-    id: '4',
-    descricao: 'Hospedagem - Hotel Central',
-    valor: 280.00,
-    data: '2024-10-02',
-    categoria: 'HOSPEDAGEM',
-    viagem_id: '2',
-    viagem: {
-      origem: 'Belo Horizonte',
-      destino: 'Salvador'
-    },
-    transportadora_id: '1',
-    transportadora: {
-      nome: 'TransLog Express'
-    },
-    fornecedor: 'Hotel Central',
-    created_at: '2024-10-02T20:45:00Z'
-  },
-  {
-    id: '5',
-    descricao: 'Seguro do veículo',
-    valor: 450.00,
-    data: '2024-10-01',
-    categoria: 'SEGURO',
-    transportadora_id: '1',
-    transportadora: {
-      nome: 'TransLog Express'
-    },
-    fornecedor: 'Seguradora XYZ',
-    created_at: '2024-10-01T10:00:00Z'
-  }
-]
-
 const categorias = [
   { value: 'COMBUSTIVEL', label: 'Combustível', color: 'bg-red-100 text-red-800' },
   { value: 'MANUTENCAO', label: 'Manutenção', color: 'bg-orange-100 text-orange-800' },
@@ -133,7 +51,7 @@ const categorias = [
 ]
 
 export default function DespesasPage() {
-  const [despesas, setDespesas] = useState<Despesa[]>(mockDespesas)
+  const [despesas, setDespesas] = useState<Despesa[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategoria, setSelectedCategoria] = useState<string>('')
   const [showForm, setShowForm] = useState(false)
@@ -149,6 +67,20 @@ export default function DespesasPage() {
     description: '',
     onConfirm: () => {}
   })
+
+  // Buscar despesas da API ao carregar a página
+  useEffect(() => {
+    async function fetchDespesas() {
+      try {
+        const res = await fetch('/api/despesas')
+        const data = await res.json()
+        setDespesas(data)
+      } catch (error) {
+        console.error('Erro ao buscar despesas:', error)
+      }
+    }
+    fetchDespesas()
+  }, [])
 
   // Filtros
   const filteredDespesas = despesas.filter(despesa => {

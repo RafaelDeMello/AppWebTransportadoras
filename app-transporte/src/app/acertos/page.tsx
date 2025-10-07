@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Layout } from '../../components/layout/Layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -17,149 +17,36 @@ import {
   Filter,
   Download,
   CheckCircle,
-  Clock,
-  AlertCircle
+  Clock
 } from 'lucide-react'
 
 interface Acerto {
   id: string
-  descricao: string
   valor: number
-  data: string
-  tipo: 'COMISSAO' | 'DESCONTO' | 'BONUS' | 'AJUSTE'
-  status: 'PENDENTE' | 'PAGO' | 'CANCELADO'
-  motorista_id: string
-  motorista?: {
-    nome: string
-    cpf: string
-  }
-  viagem_id?: string
+  pago: boolean
+  createdAt: string
+  viagemId: string
   viagem?: {
-    origem: string
-    destino: string
-    valor_frete: number
+    id: string
+    descricao: string
+    transportadora: {
+      id: string
+      nome: string
+    }
+    motorista: {
+      id: string
+      nome: string
+    }
   }
-  transportadora_id: string
-  transportadora?: {
-    nome: string
-  }
-  observacoes?: string
-  created_at: string
-  paid_at?: string
 }
 
-const mockAcertos: Acerto[] = [
-  {
-    id: '1',
-    descricao: 'Comissão - Viagem SP → RJ',
-    valor: 750.00,
-    data: '2024-10-05',
-    tipo: 'COMISSAO',
-    status: 'PAGO',
-    motorista_id: '1',
-    motorista: {
-      nome: 'João Silva',
-      cpf: '123.456.789-10'
-    },
-    viagem_id: '1',
-    viagem: {
-      origem: 'São Paulo',
-      destino: 'Rio de Janeiro',
-      valor_frete: 2500.00
-    },
-    transportadora_id: '1',
-    transportadora: {
-      nome: 'TransLog Express'
-    },
-    created_at: '2024-10-05T10:30:00Z',
-    paid_at: '2024-10-05T16:20:00Z'
-  },
-  {
-    id: '2',
-    descricao: 'Desconto - Multa de trânsito',
-    valor: -180.00,
-    data: '2024-10-04',
-    tipo: 'DESCONTO',
-    status: 'PENDENTE',
-    motorista_id: '2',
-    motorista: {
-      nome: 'Maria Santos',
-      cpf: '987.654.321-00'
-    },
-    transportadora_id: '1',
-    transportadora: {
-      nome: 'TransLog Express'
-    },
-    observacoes: 'Multa por excesso de velocidade na Via Dutra',
-    created_at: '2024-10-04T14:20:00Z'
-  },
-  {
-    id: '3',
-    descricao: 'Bônus por pontualidade',
-    valor: 300.00,
-    data: '2024-10-03',
-    tipo: 'BONUS',
-    status: 'PAGO',
-    motorista_id: '1',
-    motorista: {
-      nome: 'João Silva',
-      cpf: '123.456.789-10'
-    },
-    transportadora_id: '1',
-    transportadora: {
-      nome: 'TransLog Express'
-    },
-    observacoes: 'Entrega realizada com 1 dia de antecedência',
-    created_at: '2024-10-03T09:15:00Z',
-    paid_at: '2024-10-03T17:45:00Z'
-  },
-  {
-    id: '4',
-    descricao: 'Ajuste de combustível',
-    valor: 150.00,
-    data: '2024-10-02',
-    tipo: 'AJUSTE',
-    status: 'PENDENTE',
-    motorista_id: '3',
-    motorista: {
-      nome: 'Pedro Costa',
-      cpf: '456.789.123-45'
-    },
-    viagem_id: '3',
-    viagem: {
-      origem: 'Curitiba',
-      destino: 'Florianópolis',
-      valor_frete: 1800.00
-    },
-    transportadora_id: '1',
-    transportadora: {
-      nome: 'TransLog Express'
-    },
-    observacoes: 'Reembolso de diferença no preço do combustível',
-    created_at: '2024-10-02T11:30:00Z'
-  }
-]
-
-const tipos = [
-  { value: 'COMISSAO', label: 'Comissão', color: 'bg-green-100 text-green-800' },
-  { value: 'DESCONTO', label: 'Desconto', color: 'bg-red-100 text-red-800' },
-  { value: 'BONUS', label: 'Bônus', color: 'bg-blue-100 text-blue-800' },
-  { value: 'AJUSTE', label: 'Ajuste', color: 'bg-yellow-100 text-yellow-800' }
-]
-
-const statusOptions = [
-  { value: 'PENDENTE', label: 'Pendente', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
-  { value: 'PAGO', label: 'Pago', color: 'bg-green-100 text-green-800', icon: CheckCircle },
-  { value: 'CANCELADO', label: 'Cancelado', color: 'bg-red-100 text-red-800', icon: AlertCircle }
-]
-
 export default function AcertosPage() {
-  const [acertos, setAcertos] = useState<Acerto[]>(mockAcertos)
+  const [acertos, setAcertos] = useState<Acerto[]>([])
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedTipo, setSelectedTipo] = useState<string>('')
-  const [selectedStatus, setSelectedStatus] = useState<string>('')
+  const [showPaidOnly, setShowPaidOnly] = useState<boolean | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingAcerto, setEditingAcerto] = useState<Acerto | null>(null)
+  const [loading, setLoading] = useState(true)
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean
     title: string
@@ -172,22 +59,45 @@ export default function AcertosPage() {
     onConfirm: () => {}
   })
 
+  // Buscar acertos da API ao carregar a página
+  useEffect(() => {
+    async function fetchAcertos() {
+      try {
+        setLoading(true)
+        const url = new URL('/api/acertos', window.location.origin)
+        if (showPaidOnly !== null) {
+          url.searchParams.set('pago', showPaidOnly.toString())
+        }
+        
+        const res = await fetch(url.toString())
+        if (!res.ok) {
+          throw new Error('Erro ao buscar acertos')
+        }
+        const data = await res.json()
+        setAcertos(data)
+      } catch (error) {
+        console.error('Erro ao buscar acertos:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchAcertos()
+  }, [showPaidOnly])
+
   // Filtros
   const filteredAcertos = acertos.filter(acerto => {
-    const matchesSearch = acerto.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         acerto.motorista?.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         acerto.transportadora?.nome.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesTipo = !selectedTipo || acerto.tipo === selectedTipo
-    const matchesStatus = !selectedStatus || acerto.status === selectedStatus
+    const matchesSearch = acerto.viagem?.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         acerto.viagem?.motorista?.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         acerto.viagem?.transportadora?.nome.toLowerCase().includes(searchTerm.toLowerCase())
     
-    return matchesSearch && matchesTipo && matchesStatus
+    return matchesSearch
   })
 
   // Estatísticas
   const totalAcertos = acertos.reduce((sum, acerto) => sum + acerto.valor, 0)
-  const acertosPendentes = acertos.filter(acerto => acerto.status === 'PENDENTE')
+  const acertosPendentes = acertos.filter(acerto => !acerto.pago)
   const totalPendente = acertosPendentes.reduce((sum, acerto) => sum + acerto.valor, 0)
-  const acertosPagos = acertos.filter(acerto => acerto.status === 'PAGO')
+  const acertosPagos = acertos.filter(acerto => acerto.pago)
   const totalPago = acertosPagos.reduce((sum, acerto) => sum + acerto.valor, 0)
 
   const formatCurrency = (value: number) => {
@@ -201,44 +111,28 @@ export default function AcertosPage() {
     return new Date(dateString).toLocaleDateString('pt-BR')
   }
 
-  const getTipoStyle = (tipo: string) => {
-    const tipoObj = tipos.find(t => t.value === tipo)
-    return tipoObj?.color || 'bg-gray-100 text-gray-800'
-  }
-
-  const getTipoLabel = (tipo: string) => {
-    const tipoObj = tipos.find(t => t.value === tipo)
-    return tipoObj?.label || tipo
-  }
-
-  const getStatusStyle = (status: string) => {
-    const statusObj = statusOptions.find(s => s.value === status)
-    return statusObj?.color || 'bg-gray-100 text-gray-800'
-  }
-
-  const getStatusLabel = (status: string) => {
-    const statusObj = statusOptions.find(s => s.value === status)
-    return statusObj?.label || status
-  }
-
-  const getStatusIcon = (status: string) => {
-    const statusObj = statusOptions.find(s => s.value === status)
-    return statusObj?.icon || Clock
-  }
-
   const handleEdit = (acerto: Acerto) => {
     setEditingAcerto(acerto)
     setShowForm(true)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     const acerto = acertos.find(a => a.id === id)
     setConfirmDialog({
       isOpen: true,
       title: 'Excluir Acerto',
-      description: `Tem certeza que deseja excluir o acerto "${acerto?.descricao}"? Esta ação não pode ser desfeita.`,
-      onConfirm: () => {
-        setAcertos(acertos.filter(acerto => acerto.id !== id))
+      description: `Tem certeza que deseja excluir o acerto da viagem "${acerto?.viagem?.descricao}"? Esta ação não pode ser desfeita.`,
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/acertos/${id}`, {
+            method: 'DELETE'
+          })
+          if (res.ok) {
+            setAcertos(acertos.filter(acerto => acerto.id !== id))
+          }
+        } catch (error) {
+          console.error('Erro ao excluir acerto:', error)
+        }
       }
     })
   }
@@ -255,40 +149,43 @@ export default function AcertosPage() {
   const handleSaveAcerto = async (formData: AcertoFormData) => {
     try {
       if (editingAcerto) {
-        // Editar acerto existente
-        const updatedAcerto: Acerto = {
-          ...editingAcerto,
-          descricao: formData.descricao,
-          valor: parseFloat(formData.valor),
-          data: formData.data,
-          tipo: formData.tipo,
-          status: formData.status,
-          motorista_id: formData.motorista_id,
-          viagem_id: formData.viagem_id,
-          transportadora_id: formData.transportadora_id,
-          observacoes: formData.observacoes
-        }
+        // Editar acerto existente (implementar quando tiver a rota PUT)
+        const res = await fetch(`/api/acertos/${editingAcerto.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            viagemId: formData.viagem_id,
+            valor: parseFloat(formData.valor),
+            pago: false
+          })
+        })
         
-        setAcertos(acertos.map(acerto => 
-          acerto.id === editingAcerto.id ? updatedAcerto : acerto
-        ))
+        if (res.ok) {
+          const updatedAcerto = await res.json()
+          setAcertos(acertos.map(acerto => 
+            acerto.id === editingAcerto.id ? updatedAcerto : acerto
+          ))
+        }
       } else {
         // Criar novo acerto
-        const newAcerto: Acerto = {
-          id: Date.now().toString(),
-          descricao: formData.descricao,
-          valor: parseFloat(formData.valor),
-          data: formData.data,
-          tipo: formData.tipo,
-          status: formData.status,
-          motorista_id: formData.motorista_id,
-          viagem_id: formData.viagem_id,
-          transportadora_id: formData.transportadora_id,
-          observacoes: formData.observacoes,
-          created_at: new Date().toISOString()
-        }
+        const res = await fetch('/api/acertos', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            viagemId: formData.viagem_id,
+            valor: parseFloat(formData.valor),
+            pago: false
+          })
+        })
         
-        setAcertos([newAcerto, ...acertos])
+        if (res.ok) {
+          const newAcerto = await res.json()
+          setAcertos([newAcerto, ...acertos])
+        }
       }
       
       setShowForm(false)
@@ -304,17 +201,35 @@ export default function AcertosPage() {
     setEditingAcerto(null)
   }
 
-  const handleUpdateStatus = (id: string, newStatus: 'PENDENTE' | 'PAGO' | 'CANCELADO') => {
-    setAcertos(acertos.map(acerto => {
-      if (acerto.id === id) {
-        return {
-          ...acerto,
-          status: newStatus,
-          paid_at: newStatus === 'PAGO' ? new Date().toISOString() : undefined
-        }
+  const handleUpdateStatus = async (id: string, pago: boolean) => {
+    try {
+      const res = await fetch(`/api/acertos/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ pago })
+      })
+      
+      if (res.ok) {
+        const updatedAcerto = await res.json()
+        setAcertos(acertos.map(acerto => 
+          acerto.id === id ? updatedAcerto : acerto
+        ))
       }
-      return acerto
-    }))
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error)
+    }
+  }
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Carregando acertos...</div>
+        </div>
+      </Layout>
+    )
   }
 
   return (
@@ -423,7 +338,7 @@ export default function AcertosPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="Buscar por descrição, motorista ou transportadora..."
+                    placeholder="Buscar por viagem, motorista ou transportadora..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -432,30 +347,13 @@ export default function AcertosPage() {
               </div>
               <div className="sm:w-40">
                 <select
-                  value={selectedTipo}
-                  onChange={(e) => setSelectedTipo(e.target.value)}
+                  value={showPaidOnly === null ? '' : showPaidOnly.toString()}
+                  onChange={(e) => setShowPaidOnly(e.target.value === '' ? null : e.target.value === 'true')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
                 >
-                  <option value="" className="text-gray-900 bg-white">Todos os tipos</option>
-                  {tipos.map(tipo => (
-                    <option key={tipo.value} value={tipo.value} className="text-gray-900 bg-white">
-                      {tipo.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="sm:w-40">
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
-                >
-                  <option value="" className="text-gray-900 bg-white">Todos os status</option>
-                  {statusOptions.map(status => (
-                    <option key={status.value} value={status.value} className="text-gray-900 bg-white">
-                      {status.label}
-                    </option>
-                  ))}
+                  <option value="" className="text-gray-900 bg-white">Todos</option>
+                  <option value="false" className="text-gray-900 bg-white">Pendentes</option>
+                  <option value="true" className="text-gray-900 bg-white">Pagos</option>
                 </select>
               </div>
               <Button variant="outline" size="sm">
@@ -485,85 +383,82 @@ export default function AcertosPage() {
                     Nenhum acerto encontrado
                   </h3>
                   <p className="mt-1 text-sm text-gray-500">
-                    {searchTerm || selectedTipo || selectedStatus
+                    {searchTerm || showPaidOnly !== null
                       ? 'Tente ajustar os filtros de busca.' 
                       : 'Comece cadastrando um novo acerto.'}
                   </p>
                 </div>
               ) : (
-                filteredAcertos.map((acerto) => {
-                  const StatusIcon = getStatusIcon(acerto.status)
-                  return (
-                    <div
-                      key={acerto.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-lg gap-4"
-                    >
-                      <div className="flex-1">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                          <h3 className="font-medium text-gray-900">{acerto.descricao}</h3>
-                          <div className="flex gap-2">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTipoStyle(acerto.tipo)}`}>
-                              {getTipoLabel(acerto.tipo)}
-                            </span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${getStatusStyle(acerto.status)}`}>
-                              <StatusIcon className="h-3 w-3" />
-                              {getStatusLabel(acerto.status)}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-sm text-gray-600 space-y-1">
-                          <p>Data: {formatDate(acerto.data)}</p>
-                          <p>Motorista: {acerto.motorista?.nome}</p>
-                          <p>Transportadora: {acerto.transportadora?.nome}</p>
-                          {acerto.viagem && (
-                            <p>Viagem: {acerto.viagem.origem} → {acerto.viagem.destino}</p>
-                          )}
-                          {acerto.observacoes && (
-                            <p>Obs: {acerto.observacoes}</p>
-                          )}
+                filteredAcertos.map((acerto) => (
+                  <div
+                    key={acerto.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-lg gap-4"
+                  >
+                    <div className="flex-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                        <h3 className="font-medium text-gray-900">
+                          Acerto - {acerto.viagem?.descricao || 'Viagem sem descrição'}
+                        </h3>
+                        <div className="flex gap-2">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
+                            acerto.pago 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {acerto.pago ? (
+                              <><CheckCircle className="h-3 w-3" /> Pago</>
+                            ) : (
+                              <><Clock className="h-3 w-3" /> Pendente</>
+                            )}
+                          </span>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between sm:justify-end gap-4">
-                        <div className="text-right">
-                          <div className={`text-lg font-bold ${acerto.valor >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {acerto.valor >= 0 ? '+' : ''}{formatCurrency(acerto.valor)}
-                          </div>
-                          {acerto.paid_at && (
-                            <p className="text-xs text-gray-500">
-                              Pago em {formatDate(acerto.paid_at)}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          {acerto.status === 'PENDENTE' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleUpdateStatus(acerto.id, 'PAGO')}
-                              className="text-green-600 border-green-300 hover:bg-green-50"
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(acerto)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(acerto.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                      <div className="text-sm text-gray-600 space-y-1">
+                        <p>Data: {formatDate(acerto.createdAt)}</p>
+                        {acerto.viagem && (
+                          <>
+                            <p>Motorista: {acerto.viagem.motorista.nome}</p>
+                            <p>Transportadora: {acerto.viagem.transportadora.nome}</p>
+                            <p>Viagem: {acerto.viagem.descricao}</p>
+                          </>
+                        )}
                       </div>
                     </div>
-                  )
-                })
+                    <div className="flex items-center justify-between sm:justify-end gap-4">
+                      <div className="text-right">
+                        <div className={`text-lg font-bold ${acerto.valor >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {acerto.valor >= 0 ? '+' : ''}{formatCurrency(acerto.valor)}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {!acerto.pago && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleUpdateStatus(acerto.id, true)}
+                            className="text-green-600 border-green-300 hover:bg-green-50"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(acerto)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(acerto.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </CardContent>
