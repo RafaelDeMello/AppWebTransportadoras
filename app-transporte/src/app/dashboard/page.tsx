@@ -13,6 +13,27 @@ export default function Dashboard() {
   const [motoristaFormOpen, setMotoristaFormOpen] = useState(false)
   const [codigoGerado, setCodigoGerado] = useState<string | null>(null)
   const [transportadoraId, setTransportadoraId] = useState<string>('')
+  const [motoristas, setMotoristas] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Carregar motoristas ao montar o componente
+  React.useEffect(() => {
+    carregarMotoristas()
+  }, [])
+
+  async function carregarMotoristas() {
+    try {
+      const res = await fetch('/api/motoristas')
+      if (res.ok) {
+        const data = await res.json()
+        setMotoristas(data)
+      }
+    } catch (err) {
+      console.error('Erro ao carregar motoristas:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Função para cadastrar motorista
   interface MotoristaFormData {
@@ -42,6 +63,7 @@ export default function Dashboard() {
         const motorista = await res.json()
         setCodigoGerado(`CÓDIGO DE VALIDAÇÃO: ${motorista.codigoValidacao}`)
         alert(`Motorista cadastrado! Código: ${motorista.codigoValidacao}`)
+        carregarMotoristas() // Recarrega a lista de motoristas
       } else {
         const erro = await res.json().catch(() => ({}))
         alert(erro.error || 'Erro ao cadastrar motorista')
@@ -86,6 +108,51 @@ export default function Dashboard() {
       <div className="space-y-6">
         {/* ...existing code... */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Lista de Motoristas */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Motoristas Cadastrados</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <p>Carregando motoristas...</p>
+              ) : motoristas.length === 0 ? (
+                <p className="text-gray-500">Nenhum motorista cadastrado ainda.</p>
+              ) : (
+                <div className="space-y-3">
+                  {motoristas.map((motorista) => (
+                    <div key={motorista.id} className="border rounded-lg p-4 bg-gray-50">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-semibold">{motorista.nome}</h3>
+                          <p className="text-sm text-gray-600">CPF: {motorista.cpf}</p>
+                          <p className="text-sm text-gray-600">CNH: {motorista.cnh}</p>
+                          {motorista.codigoValidacao && (
+                            <div className="mt-2 p-2 bg-blue-100 rounded border">
+                              <p className="text-sm font-mono text-blue-800">
+                                Código: <strong>{motorista.codigoValidacao}</strong>
+                              </p>
+                              <p className="text-xs text-blue-600">
+                                {motorista.validado ? '✅ Já validado' : '⏳ Aguardando validação'}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            motorista.status === 'ATIVO' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {motorista.status}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* ...existing code... */}
           <Card>
             <CardHeader>

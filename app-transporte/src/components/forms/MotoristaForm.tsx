@@ -186,7 +186,12 @@ export function MotoristaForm({
     setIsSubmitting(true)
     console.log('Enviando cadastro de motorista, transportadoraId:', formData.transportadoraId)
     try {
-      await onSubmit(formData)
+      // Remover formatação do CPF antes de enviar
+      const dataToSubmit = {
+        ...formData,
+        cpf: formData.cpf.replace(/\D/g, '') // Remove todos os caracteres não numéricos
+      }
+      await onSubmit(dataToSubmit)
       onClose()
     } catch (error) {
       console.error('Erro ao salvar motorista:', error)

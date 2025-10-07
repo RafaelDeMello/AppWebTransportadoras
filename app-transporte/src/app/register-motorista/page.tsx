@@ -20,8 +20,11 @@ export default function RegisterMotoristaPage() {
   const supabase = createClient()
 
   const formatCPF = (value: string) => {
-    const digits = value.replace(/\D/g, '')
-    return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+    const digits = value.replace(/\D/g, '').slice(0, 11) // Limita a 11 dígitos
+    if (digits.length <= 3) return digits
+    if (digits.length <= 6) return digits.replace(/(\d{3})(\d+)/, '$1.$2')
+    if (digits.length <= 9) return digits.replace(/(\d{3})(\d{3})(\d+)/, '$1.$2.$3')
+    return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,7 +48,7 @@ export default function RegisterMotoristaPage() {
         throw new Error('Email inválido')
       }
 
-      // Primeiro autenticar no Supabase
+      // PASSO 1: Criar conta no Supabase primeiro
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -63,10 +66,10 @@ export default function RegisterMotoristaPage() {
         }
       }
 
-      // Sincronizar com nossa tabela Usuario
+      // PASSO 2: Sincronizar com nossa tabela Usuario
       await fetch('/api/auth/sync', { method: 'POST' })
 
-      // Validar CPF e código com nossa API
+      // PASSO 3: Agora validar CPF + código (com autenticação ativa)
       const validateRes = await fetch('/api/auth/validate-motorista', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -125,6 +128,8 @@ export default function RegisterMotoristaPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="seu@email.com"
+                className="!text-white"
+                style={{ color: 'white' }}
               />
             </div>
 
@@ -137,6 +142,8 @@ export default function RegisterMotoristaPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="Mínimo 6 caracteres"
+                className="!text-white"
+                style={{ color: 'white' }}
               />
             </div>
 
@@ -150,6 +157,8 @@ export default function RegisterMotoristaPage() {
                 required
                 placeholder="000.000.000-00"
                 maxLength={14}
+                className="!text-white"
+                style={{ color: 'white' }}
               />
             </div>
 
@@ -163,6 +172,8 @@ export default function RegisterMotoristaPage() {
                 required
                 placeholder="ABC123"
                 maxLength={6}
+                className="!text-white font-mono"
+                style={{ color: 'white' }}
               />
             </div>
 
