@@ -45,61 +45,7 @@ interface MotoristaFormData {
   status: 'ATIVO' | 'INATIVO'
 }
 
-// Mock data
-const mockMotoristas: Motorista[] = [
-  {
-    id: '1',
-    nome: 'João Silva Santos',
-    cpf: '123.456.789-00',
-    cnh: '12345678900',
-    telefone: '(11) 9 8765-4321',
-    transportadoraNome: 'Transportes São Paulo Ltda',
-    transportadoraId: 'transp1',
-    viagensFinalizadas: 45,
-    viagensAtivas: 2,
-    status: 'ATIVO',
-    createdAt: '2024-01-15'
-  },
-  {
-    id: '2',
-    nome: 'Maria Santos Costa',
-    cpf: '987.654.321-00',
-    cnh: '98765432100',
-    telefone: '(11) 9 1234-5678',
-    transportadoraNome: 'Transportes São Paulo Ltda',
-    transportadoraId: 'transp1',
-    viagensFinalizadas: 78,
-    viagensAtivas: 1,
-    status: 'ATIVO',
-    createdAt: '2024-02-10'
-  },
-  {
-    id: '3',
-    nome: 'Pedro Oliveira Lima',
-    cpf: '456.789.123-00',
-    cnh: '45678912300',
-    telefone: '(51) 9 5555-6666',
-    transportadoraNome: 'Logística Rio Grande',
-    transportadoraId: 'transp2',
-    viagensFinalizadas: 32,
-    viagensAtivas: 0,
-    status: 'INATIVO',
-    createdAt: '2024-03-05'
-  },
-  {
-    id: '4',
-    nome: 'Ana Paula Ferreira',
-    cpf: '789.123.456-00',
-    cnh: '78912345600',
-    telefone: '(31) 9 7777-8888',
-    transportadoraNome: 'Express Minas Gerais',
-    transportadoraId: 'transp3',
-    viagensFinalizadas: 56,
-    viagensAtivas: 3,
-    status: 'ATIVO',
-    createdAt: '2024-01-20'
-  }
-]
+// Dados reais virão apenas da API
 
 // Removido mock de transportadoras: o formulário buscará da API quando necessário
 
@@ -110,6 +56,7 @@ export default function MotoristasPage() {
   const [statusFilter, setStatusFilter] = useState<'TODOS' | 'ATIVO' | 'INATIVO'>('TODOS')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingMotorista, setEditingMotorista] = useState<Motorista | null>(null)
+  const [transportadoraId, setTransportadoraId] = useState<string>('')
 
   // Carregar dados da API
   useEffect(() => {
@@ -145,13 +92,11 @@ export default function MotoristasPage() {
           setMotoristas(mappedData)
         } else {
           console.error('Erro ao carregar motoristas:', response.statusText)
-          // Em caso de erro, usar dados mock temporariamente
-          setMotoristas(mockMotoristas)
+          setMotoristas([]) // Lista vazia se API falhar
         }
       } catch (error) {
         console.error('Erro ao carregar motoristas:', error)
-        // Em caso de erro, usar dados mock temporariamente
-        setMotoristas(mockMotoristas)
+        setMotoristas([]) // Lista vazia se API falhar
       } finally {
         setIsLoading(false)
       }
@@ -202,12 +147,39 @@ export default function MotoristasPage() {
     }
   }
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
+    // Buscar transportadoraId do usuário logado
+    try {
+      const response = await fetch('/api/auth/me');
+      if (response.ok) {
+        const userData = await response.json();
+        console.log('Dados do usuário logado:', userData);
+        console.log('TransportadoraId do usuário:', userData?.transportadora?.id);
+        
+        if (!userData?.transportadora?.id) {
+          alert('Usuário não está vinculado a uma transportadora. Cadastro não permitido!');
+          return;
+        }
+        
+        setTransportadoraId(userData.transportadora.id);
+      } else {
+        alert('Erro ao verificar dados do usuário. Faça login novamente.');
+        return;
+      }
+    } catch (error) {
+      console.error('Erro ao buscar dados do usuário:', error);
+      alert('Erro ao verificar autenticação. Tente novamente.');
+      return;
+    }
+    
     setEditingMotorista(null)
     setIsFormOpen(true)
   }
 
   const handleFormSubmit = async (formData: MotoristaFormData) => {
+    console.log('Dados do formulário recebidos:', formData);
+    console.log('TransportadoraId enviado:', formData.transportadoraId);
+    
     try {
       if (editingMotorista) {
         // Editar motorista existente
@@ -527,6 +499,7 @@ export default function MotoristasPage() {
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
         onSubmit={handleFormSubmit}
+        transportadoraId={transportadoraId}
         motorista={editingMotorista ? {
           ...editingMotorista,
           telefone: editingMotorista.telefone || '',

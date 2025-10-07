@@ -4,11 +4,11 @@ import { z } from 'zod';
 
 // Schema de validação para motorista
 const motoristaSchema = z.object({
-  nome: z.string().optional(),
-  cpf: z.string().optional(),
+  nome: z.string().min(1, "Nome é obrigatório"),
+  cpf: z.string().min(1, "CPF é obrigatório"),
   cnh: z.string().optional(),
   telefone: z.string().optional(),
-  transportadoraId: z.string(), // obrigatório
+  transportadoraId: z.string().min(1, "Transportadora é obrigatória"),
 });
 
 // GET - Listar todos os motoristas
@@ -68,37 +68,27 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar se CPF já existe
-    const existingMotorista = await prisma.motorista.findUnique({
-      where: { cpf: validatedData.cpf }
-    });
+    if (validatedData.cpf) {
+      const existingMotorista = await prisma.motorista.findUnique({
+        where: { cpf: validatedData.cpf }
+      });
 
-    if (existingMotorista) {
-      return NextResponse.json(
-        { error: 'CPF já cadastrado' },
-        { status: 400 }
-      );
+      if (existingMotorista) {
+        return NextResponse.json(
+          { error: 'CPF já cadastrado' },
+          { status: 400 }
+        );
+      }
     }
 
-    // Gerar código de validação único (6 dígitos alfanuméricos)
-    function gerarCodigo() {
-      return Math.random().toString(36).substring(2, 8).toUpperCase();
-    }
-    let codigoValidacao = gerarCodigo();
-    // Garante unicidade do código
-    while (await prisma.motorista.findUnique({ where: { codigoValidacao } })) {
-      codigoValidacao = gerarCodigo();
-    }
-
-    // Preenche campos obrigatórios com string vazia se não informados
-    const { nome = '', cpf = '', cnh = '', telefone = '', transportadoraId } = validatedData
+    // Criar motorista
     const motorista = await prisma.motorista.create({
       data: {
-        nome,
-        cpf,
-        cnh,
-        telefone,
-        transportadoraId,
-        codigoValidacao,
+        nome: validatedData.nome,
+        cpf: validatedData.cpf,
+        cnh: validatedData.cnh || null,
+        telefone: validatedData.telefone || null,
+        transportadoraId: validatedData.transportadoraId,
       },
       include: {
         transportadora: {

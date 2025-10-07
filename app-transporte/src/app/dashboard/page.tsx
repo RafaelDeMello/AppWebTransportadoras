@@ -40,7 +40,7 @@ export default function Dashboard() {
       })
       if (res.ok) {
         const motorista = await res.json()
-        setCodigoGerado(motorista.codigoValidacao)
+        setCodigoGerado(`Motorista ${motorista.nome} cadastrado com sucesso!`)
         alert('Motorista cadastrado com sucesso!')
       } else {
         const erro = await res.json().catch(() => ({}))
