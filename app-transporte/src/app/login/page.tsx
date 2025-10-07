@@ -58,6 +58,15 @@ export default function LoginPage() {
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? 'Entrando...' : 'Entrar'}
               </Button>
+              <div className="text-center">
+                <button 
+                  type="button" 
+                  onClick={() => router.push('/forgot-password')}
+                  className="text-sm text-blue-400 hover:text-blue-300 underline"
+                >
+                  Esqueci minha senha
+                </button>
+              </div>
               <Button type="button" variant="outline" className="w-full" onClick={() => router.push('/register')}>
                 Criar conta
               </Button>

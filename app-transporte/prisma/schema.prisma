@@ -64,6 +64,8 @@ model Motorista {
   cnh              String?
   telefone         String?
   transportadoraId String
+  codigoValidacao  String?  @unique
+  validado         Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

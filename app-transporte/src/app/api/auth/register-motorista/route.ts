@@ -8,8 +8,8 @@ const schema = z.object({
   transportadoraId: z.string().uuid(),
   nome: z.string().min(1),
   cpf: z.string().min(11),
-  cnh: z.string().min(11),
-  telefone: z.string().min(8),
+  cnh: z.string().optional(),
+  telefone: z.string().optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
       data: {
         nome: data.nome,
         cpf: data.cpf,
-        cnh: data.cnh,
-        telefone: data.telefone,
+        cnh: data.cnh || null,
+        telefone: data.telefone || null,
         transportadoraId: data.transportadoraId,
       },
     })

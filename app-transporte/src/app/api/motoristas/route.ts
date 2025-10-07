@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
+// Função para gerar código de validação único
+function gerarCodigoValidacao(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  let codigo = ''
+  for (let i = 0; i < 6; i++) {
+    codigo += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return codigo
+}
+
 // Schema de validação para motorista
 const motoristaSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório"),
@@ -81,6 +91,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Gerar código único de validação
+    let codigoValidacao;
+    let codigoExiste = true;
+    
+    while (codigoExiste) {
+      codigoValidacao = gerarCodigoValidacao();
+      const existingCodigo = await prisma.motorista.findUnique({
+        where: { codigoValidacao }
+      });
+      codigoExiste = !!existingCodigo;
+    }
+
     // Criar motorista
     const motorista = await prisma.motorista.create({
       data: {
@@ -89,6 +111,8 @@ export async function POST(request: NextRequest) {
         cnh: validatedData.cnh || null,
         telefone: validatedData.telefone || null,
         transportadoraId: validatedData.transportadoraId,
+        codigoValidacao: codigoValidacao,
+        validado: false,
       },
       include: {
         transportadora: {
