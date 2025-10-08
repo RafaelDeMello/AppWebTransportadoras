@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
-import { Role } from '@/generated/prisma'
+import bcrypt from 'bcryptjs'
 
 const schema = z.object({
   email: z.string().email(),
@@ -12,30 +11,36 @@ const schema = z.object({
   cpf: z.string().min(11),
   cnh: z.string().optional(),
   telefone: z.string().optional(),
+  codigoValidacao: z.string().length(6),
 })
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const data = schema.parse(body)
-    const { email, senha, transportadoraId, nome, cpf, cnh, telefone } = data
-
-    const { supabase } = createClient(request)
-    // Criar usuário no Supabase
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password: senha
-    })
-    if (signUpError || !signUpData.user) {
-      return NextResponse.json({ error: 'Erro ao criar usuário no Supabase', details: signUpError?.message }, { status: 400 })
-    }
-    const supabaseUid = signUpData.user.id
+    const { email, senha, transportadoraId, nome, cpf, cnh, telefone, codigoValidacao } = data
 
     // Verificar se transportadora existe
     const transportadora = await prisma.transportadora.findUnique({ where: { id: transportadoraId } })
     if (!transportadora) return NextResponse.json({ error: 'Transportadora não encontrada' }, { status: 400 })
 
-    // Fluxo original: cria motorista e usuário sem obrigatoriedade rígida
+    // Verificar se já existe motorista com mesmo CPF ou email
+    const motoristaExistente = await prisma.motorista.findFirst({
+      where: {
+        OR: [
+          { cpf },
+          { email }
+        ]
+      }
+    })
+    if (motoristaExistente) {
+      return NextResponse.json({ error: 'Já existe um motorista com este CPF ou email' }, { status: 400 })
+    }
+
+    // Gerar hash da senha
+    const senhaHash = await bcrypt.hash(senha, 10)
+
+    // Criar motorista
     const motorista = await prisma.motorista.create({
       data: {
         nome,
@@ -43,30 +48,14 @@ export async function POST(request: NextRequest) {
         cnh: cnh || null,
         telefone: telefone || null,
         transportadoraId,
+        email,
+        senhaHash,
+        codigoValidacao,
+        validado: false,
       },
     })
 
-    const existing = await prisma.usuario.findUnique({ where: { supabaseUid } })
-    const usuario = existing
-      ? await prisma.usuario.update({
-          where: { id: existing.id },
-          data: { role: Role.MOTORISTA, transportadoraId, motoristaId: motorista.id },
-        })
-      : await prisma.usuario.create({
-          data: {
-            email,
-            senhaHash: '-',
-            role: Role.MOTORISTA,
-            transportadoraId,
-            motoristaId: motorista.id,
-            supabaseUid,
-          },
-        })
-
-    // Autenticar automaticamente
-    await supabase.auth.signInWithPassword({ email, password: senha })
-
-    return NextResponse.json({ success: true, motoristaId: motorista.id, usuarioId: usuario.id })
+    return NextResponse.json({ success: true, motoristaId: motorista.id })
   } catch (e) {
     console.error('POST /api/auth/register-motorista error:', e)
     if (e instanceof z.ZodError) return NextResponse.json({ error: 'Dados inválidos', details: e.issues }, { status: 400 })

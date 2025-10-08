@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
+import bcrypt from 'bcryptjs';
 
 // Função para gerar código de validação único
 function gerarCodigoValidacao(): string {
@@ -20,51 +20,33 @@ const motoristaSchema = z.object({
   cnh: z.string().optional(),
   telefone: z.string().optional(),
   transportadoraId: z.string().min(1, "Transportadora é obrigatória"),
+  email: z.string().email("Email é obrigatório"),
+  senha: z.string().min(6, "Senha é obrigatória"),
 });
 
 // GET - Listar todos os motoristas
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-  // Recuperar usuário autenticado
-  const { supabase } = createClient(request);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-    }
-    // Buscar dados completos do usuário
-    const usuario = await prisma.usuario.findUnique({
-      where: { supabaseUid: user.id },
-    });
-    if (!usuario) {
-      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 401 });
-    }
-
-    // Segurança: Admin só pode acessar motoristas da sua transportadora
-    const whereClause: { transportadoraId?: string } = {};
-    if (usuario.role === 'ADMIN_TRANSPORTADORA') {
-      whereClause.transportadoraId = usuario.transportadoraId ?? undefined;
-    } else if (usuario.role === 'MOTORISTA') {
-      // Motorista só pode acessar seu próprio cadastro
-      return NextResponse.json([], { status: 200 });
-    }
-
-    const motoristas = await prisma.motorista.findMany({
-      where: whereClause,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        transportadora: {
-          select: {
-            id: true,
-            nome: true,
-          }
-        },
-        _count: {
-          select: {
-            viagens: true,
-          }
+  // Implementar autenticação baseada em cookie/jwt futuramente
+  // Por enquanto, retorna todos os motoristas
+  const motoristas = await prisma.motorista.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      transportadora: {
+        select: {
+          id: true,
+          nome: true,
+        }
+      },
+      _count: {
+        select: {
+          viagens: true,
         }
       }
-    });
+    }
+  });
+  return NextResponse.json(motoristas);
+
 
     return NextResponse.json(motoristas);
   } catch (error) {
@@ -122,26 +104,44 @@ export async function POST(request: NextRequest) {
       codigoExiste = !!existingCodigo;
     }
 
-    // Criar motorista
-    const motorista = await prisma.motorista.create({
-      data: {
-        nome: validatedData.nome,
-        cpf: validatedData.cpf,
-        cnh: validatedData.cnh || null,
-        telefone: validatedData.telefone || null,
-        transportadoraId: validatedData.transportadoraId,
-        codigoValidacao: codigoValidacao,
-        validado: false,
-      },
-      include: {
-        transportadora: {
-          select: {
-            id: true,
-            nome: true,
+        // Verificar se já existe motorista com mesmo CPF ou email
+        const motoristaExistente = await prisma.motorista.findFirst({
+          where: {
+            OR: [
+              { cpf: validatedData.cpf },
+              { email: validatedData.email }
+            ]
           }
+        });
+        if (motoristaExistente) {
+          return NextResponse.json({ error: 'Já existe um motorista com este CPF ou email' }, { status: 400 });
         }
-      }
-    });
+
+        // Gerar hash da senha
+        const senhaHash = await bcrypt.hash(validatedData.senha, 10);
+
+        // Criar motorista
+        const motorista = await prisma.motorista.create({
+          data: {
+            nome: validatedData.nome,
+            cpf: validatedData.cpf,
+            cnh: validatedData.cnh || null,
+            telefone: validatedData.telefone || null,
+            transportadoraId: validatedData.transportadoraId,
+            email: validatedData.email,
+            senhaHash,
+            codigoValidacao: codigoValidacao || '',
+            validado: false,
+          },
+          include: {
+            transportadora: {
+              select: {
+                id: true,
+                nome: true,
+              }
+            }
+          }
+        });
 
     return NextResponse.json(motorista, { status: 201 });
   } catch (error) {

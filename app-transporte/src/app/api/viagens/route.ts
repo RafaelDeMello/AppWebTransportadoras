@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { StatusViagem } from '@/generated/prisma';
-import { createClient } from '@/lib/supabase/server';
 
 // Schema de validação para viagem
 const viagemSchema = z.object({
@@ -22,42 +21,16 @@ export async function GET(request: NextRequest) {
     const motoristaId = searchParams.get('motoristaId');
     const status = searchParams.get('status') as StatusViagem | null;
 
-    // Recuperar usuário autenticado
-  const { supabase } = createClient(request);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-    }
-    // Buscar dados completos do usuário
-    const usuario = await prisma.usuario.findUnique({
-      where: { supabaseUid: user.id },
-    });
-    if (!usuario) {
-      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 401 });
-    }
-
-    // Segurança: Motorista só pode acessar suas próprias viagens
-    if (usuario.role === 'MOTORISTA') {
-      if (motoristaId && motoristaId !== usuario.motoristaId) {
-        return NextResponse.json({ error: 'Acesso negado: motorista só pode acessar suas próprias viagens' }, { status: 403 });
-      }
-    }
-    // Segurança: Admin só pode acessar viagens da sua transportadora
-    if (usuario.role === 'ADMIN_TRANSPORTADORA') {
-      if (transportadoraId && transportadoraId !== usuario.transportadoraId) {
-        return NextResponse.json({ error: 'Acesso negado: admin só pode acessar viagens da sua transportadora' }, { status: 403 });
-      }
-    }
-
     const whereClause: {
       transportadoraId?: string;
       motoristaId?: string;
       status?: StatusViagem;
     } = {};
-    if (usuario.role === 'MOTORISTA') {
-      whereClause.motoristaId = usuario.motoristaId ?? undefined;
-    } else if (usuario.role === 'ADMIN_TRANSPORTADORA') {
-      whereClause.transportadoraId = usuario.transportadoraId ?? undefined;
+    if (motoristaId) {
+      whereClause.motoristaId = motoristaId;
+    }
+    if (transportadoraId) {
+      whereClause.transportadoraId = transportadoraId;
     }
     if (status) whereClause.status = status;
 

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
-import { Role } from '@/generated/prisma'
 
 const schema = z.object({
   cpf: z.string().min(11),
@@ -54,12 +52,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Agora verificar se o usuário está autenticado no Supabase
-    const { supabase } = createClient(request)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user || !user.email) {
-      return NextResponse.json({ error: 'Erro de autenticação do Supabase' }, { status: 401 })
-    }
 
     // Atualizar motorista como validado
     await prisma.motorista.update({
@@ -67,36 +59,10 @@ export async function POST(request: NextRequest) {
       data: { validado: true }
     })
 
-    // Criar ou atualizar usuário na tabela Usuario
-    const existing = await prisma.usuario.findUnique({ 
-      where: { supabaseUid: user.id } 
-    })
-    
-    const usuario = existing
-      ? await prisma.usuario.update({
-          where: { id: existing.id },
-          data: { 
-            role: Role.MOTORISTA, 
-            transportadoraId: motorista.transportadoraId, 
-            motoristaId: motorista.id 
-          },
-        })
-      : await prisma.usuario.create({
-          data: {
-            email: user.email,
-            senhaHash: '-', // placeholder: usamos Supabase para autenticação
-            role: Role.MOTORISTA,
-            transportadoraId: motorista.transportadoraId,
-            motoristaId: motorista.id,
-            supabaseUid: user.id,
-          },
-        })
-
     return NextResponse.json({ 
       success: true, 
       motoristaId: motorista.id, 
       transportadoraId: motorista.transportadoraId,
-      usuarioId: usuario.id 
     })
   } catch (e) {
     console.error('POST /api/auth/validate-motorista error:', e)

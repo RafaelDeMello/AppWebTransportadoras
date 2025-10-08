@@ -1,69 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
-import { Role } from '@/generated/prisma'
+import bcrypt from 'bcryptjs'
 
 const schema = z.object({
+  nome: z.string().min(1),
+  cnpj: z.string().min(11),
   email: z.string().email(),
   senha: z.string().min(6),
-  transportadoraNome: z.string().min(1),
-  transportadoraCnpj: z.string().min(11),
+  telefone: z.string().optional(),
+  endereco: z.string().optional(),
 })
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const data = schema.parse(body)
-    const { email, senha, transportadoraNome, transportadoraCnpj } = data
+    const { nome, cnpj, email, senha, telefone, endereco } = data
 
-    const { supabase } = createClient(request)
-    // Criar usuário no Supabase
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password: senha
+    // Verificar se já existe transportadora com mesmo CNPJ ou email
+    const transportadoraExistente = await prisma.transportadora.findFirst({
+      where: {
+        OR: [
+          { cnpj },
+          { email }
+        ]
+      }
     })
-    if (signUpError || !signUpData.user) {
-      return NextResponse.json({ error: 'Erro ao criar usuário no Supabase', details: signUpError?.message }, { status: 400 })
-    }
-    const supabaseUid = signUpData.user.id
-
-    // Verificar se já existe usuário com esse UID
-    const existing = await prisma.usuario.findUnique({ where: { supabaseUid } })
-    if (existing?.transportadoraId) {
-      return NextResponse.json({ error: 'Usuário já possui transportadora vinculada' }, { status: 400 })
+    if (transportadoraExistente) {
+      return NextResponse.json({ error: 'Já existe uma transportadora com este CNPJ ou email' }, { status: 400 })
     }
 
-    // Criar transportadora primeiro
+    // Gerar hash da senha
+    const senhaHash = await bcrypt.hash(senha, 10)
+
+    // Criar transportadora
     const transportadora = await prisma.transportadora.create({
       data: {
-        nome: transportadoraNome,
-        cnpj: transportadoraCnpj,
+        nome,
+        cnpj,
         email,
+        senhaHash,
+        telefone,
+        endereco,
       },
     })
 
-    // Criar usuário já vinculado à transportadora
-    const usuario = await prisma.usuario.create({
-      data: {
-        email,
-        senhaHash: '-',
-        role: Role.ADMIN_TRANSPORTADORA,
-        transportadoraId: transportadora.id,
-        supabaseUid,
-      },
-    })
-
-    // Autenticar automaticamente (não impede cadastro em caso de erro)
-    try {
-      await supabase.auth.signInWithPassword({ email, password: senha })
-    } catch (authError) {
-      console.error('Erro na autenticação automática:', authError)
-      // Não retorna erro, apenas loga
-    }
-
-    // Retorna sucesso independentemente da autenticação automática
-    return NextResponse.json({ success: true, transportadoraId: transportadora.id, usuarioId: usuario.id })
+    return NextResponse.json({ success: true, transportadoraId: transportadora.id })
   } catch (e) {
     console.error('POST /api/auth/register-admin error:', e)
     if (e instanceof z.ZodError) return NextResponse.json({ error: 'Dados inválidos', details: e.issues }, { status: 400 })
