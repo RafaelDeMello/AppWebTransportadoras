@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useUser } from '@/lib/UserContext'
 import { Layout } from '../../components/layout/Layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -35,6 +36,7 @@ interface ViagemItem {
 }
 
 export default function ViagensPage() {
+  const { userInfo } = useUser()
   const [viagens, setViagens] = useState<ViagemItem[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -42,10 +44,18 @@ export default function ViagensPage() {
 
   // Carregar dados da API
   useEffect(() => {
-    const loadViagens = async () => {
+    const loadData = async () => {
+      if (!userInfo) return
+      
       setIsLoading(true)
       try {
-        const response = await fetch('/api/viagens')
+        // Carregar viagens (filtrando por motorista se necessário)
+        let viagensUrl = '/api/viagens'
+        if (userInfo.role === 'MOTORISTA' && userInfo.motorista?.id) {
+          viagensUrl += `?motoristaId=${userInfo.motorista.id}`
+        }
+
+        const response = await fetch(viagensUrl)
         if (response.ok) {
           const data = await response.json()
           setViagens(data)
@@ -54,15 +64,15 @@ export default function ViagensPage() {
           setViagens([])
         }
       } catch (error) {
-        console.error('Erro ao carregar viagens:', error)
+        console.error('Erro ao carregar dados:', error)
         setViagens([])
       } finally {
         setIsLoading(false)
       }
     }
 
-    loadViagens()
-  }, [])
+    loadData()
+  }, [userInfo])
 
   // Filtrar viagens
   const filteredViagens = viagens.filter((v) => {

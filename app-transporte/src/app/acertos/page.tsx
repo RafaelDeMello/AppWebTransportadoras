@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useUser } from '@/lib/UserContext'
 import { Layout } from '../../components/layout/Layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -41,6 +42,7 @@ interface Acerto {
 }
 
 export default function AcertosPage() {
+  const { userInfo } = useUser()
   const [acertos, setAcertos] = useState<Acerto[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [showPaidOnly, setShowPaidOnly] = useState<boolean | null>(null)
@@ -61,12 +63,19 @@ export default function AcertosPage() {
 
   // Buscar acertos da API ao carregar a página
   useEffect(() => {
-    async function fetchAcertos() {
+    async function fetchData() {
+      if (!userInfo) return
+      
       try {
         setLoading(true)
+        
         const url = new URL('/api/acertos', window.location.origin)
         if (showPaidOnly !== null) {
           url.searchParams.set('pago', showPaidOnly.toString())
+        }
+        
+        if (userInfo.role === 'MOTORISTA' && userInfo.motorista?.id) {
+          url.searchParams.set('motoristaId', userInfo.motorista.id)
         }
         
         const res = await fetch(url.toString())
@@ -76,13 +85,13 @@ export default function AcertosPage() {
         const data = await res.json()
         setAcertos(data)
       } catch (error) {
-        console.error('Erro ao buscar acertos:', error)
+        console.error('Erro ao buscar dados:', error)
       } finally {
         setLoading(false)
       }
     }
-    fetchAcertos()
-  }, [showPaidOnly])
+    fetchData()
+  }, [showPaidOnly, userInfo])
 
   // Filtros
   const filteredAcertos = acertos.filter(acerto => {

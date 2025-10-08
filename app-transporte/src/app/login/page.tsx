@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useUser } from '@/lib/UserContext'
 import { Layout } from '@/components/layout/Layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -11,6 +12,7 @@ import { Button } from '@/components/ui/button'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { refetch } = useUser()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -27,6 +29,9 @@ export default function LoginPage() {
 
       // Sincroniza usuário com tabela Usuario
       await fetch('/api/auth/sync', { method: 'POST' })
+
+      // Atualiza o contexto do usuário após login bem-sucedido
+      await refetch()
 
       router.push('/dashboard')
     } catch (err: unknown) {

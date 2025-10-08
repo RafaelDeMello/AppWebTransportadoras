@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { useUser } from '@/lib/UserContext'
 import { Layout } from '../../components/layout/Layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -30,6 +31,7 @@ interface Despesa {
 }
 
 export default function DespesasPage() {
+  const { userInfo } = useUser()
   const [despesas, setDespesas] = useState<Despesa[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategoria] = useState<string>('')
@@ -49,19 +51,27 @@ export default function DespesasPage() {
 
   // Buscar despesas da API ao carregar a página
   useEffect(() => {
-    async function fetchDespesas() {
+    async function fetchData() {
+      if (!userInfo) return
+      
       try {
-        const res = await fetch('/api/despesas')
+        // Carregar despesas (filtrando por motorista se necessário)
+        let despesasUrl = '/api/despesas'
+        if (userInfo.role === 'MOTORISTA' && userInfo.motorista?.id) {
+          despesasUrl += `?motoristaId=${userInfo.motorista.id}`
+        }
+
+        const res = await fetch(despesasUrl)
         if (res.ok) {
           const data = await res.json()
           setDespesas(data)
         }
       } catch (error) {
-        console.error('Erro ao buscar despesas:', error)
+        console.error('Erro ao buscar dados:', error)
       }
     }
-    fetchDespesas()
-  }, [])
+    fetchData()
+  }, [userInfo])
 
   // Filtros
   const filteredDespesas = despesas.filter(despesa => {

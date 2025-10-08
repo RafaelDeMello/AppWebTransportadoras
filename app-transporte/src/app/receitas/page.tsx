@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { useUser } from '@/lib/UserContext'
 import { Layout } from '../../components/layout/Layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -34,18 +35,27 @@ interface Receita {
 }
 
 export default function ReceitasPage() {
+  const { userInfo } = useUser()
   const [receitas, setReceitas] = useState<Receita[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingReceita, setEditingReceita] = useState<Receita | null>(null)
-    const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   
   // Buscar dados da API
   useEffect(() => {
-    const fetchReceitas = async () => {
+    const fetchData = async () => {
+      if (!userInfo) return
+      
       setIsLoading(true);
       try {
-        const response = await fetch('/api/receitas');
+        // Carregar receitas (filtrando por motorista se necessário)
+        let receitasUrl = '/api/receitas'
+        if (userInfo.role === 'MOTORISTA' && userInfo.motorista?.id) {
+          receitasUrl += `?motoristaId=${userInfo.motorista.id}`
+        }
+
+        const response = await fetch(receitasUrl);
         if (response.ok) {
           const data = await response.json();
           setReceitas(data);
@@ -59,8 +69,8 @@ export default function ReceitasPage() {
       }
     };
     
-    fetchReceitas();
-  }, []);
+    fetchData();
+  }, [userInfo]);
 
   // Filtros
   const filteredReceitas = receitas.filter(receita => {

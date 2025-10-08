@@ -14,15 +14,25 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const viagemId = searchParams.get('viagemId');
+    const motoristaId = searchParams.get('motoristaId');
     const pago = searchParams.get('pago');
 
     const whereClause: {
       viagemId?: string;
       pago?: boolean;
+      viagem?: {
+        motoristaId: string;
+      };
     } = {};
     
     if (viagemId) whereClause.viagemId = viagemId;
     if (pago !== null) whereClause.pago = pago === 'true';
+    
+    if (motoristaId) {
+      whereClause.viagem = {
+        motoristaId: motoristaId
+      };
+    }
 
     const acertos = await prisma.acerto.findMany({
       where: whereClause,

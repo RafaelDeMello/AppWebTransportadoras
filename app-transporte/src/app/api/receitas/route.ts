@@ -14,8 +14,24 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const viagemId = searchParams.get('viagemId');
+    const motoristaId = searchParams.get('motoristaId');
 
-    const whereClause = viagemId ? { viagemId } : {};
+    const whereClause: {
+      viagemId?: string;
+      viagem?: {
+        motoristaId: string;
+      };
+    } = {};
+
+    if (viagemId) {
+      whereClause.viagemId = viagemId;
+    }
+
+    if (motoristaId) {
+      whereClause.viagem = {
+        motoristaId: motoristaId
+      };
+    }
 
     const receitas = await prisma.receita.findMany({
       where: whereClause,

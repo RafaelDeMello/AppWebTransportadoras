@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import { useUser } from '@/lib/UserContext'
 import { 
   Truck, 
-  LayoutDashboard, 
+  LayoutDashboard,
   Users, 
   Route, 
   DollarSign, 
@@ -27,7 +28,8 @@ interface NavigationItem {
   icon: React.ComponentType<{ className?: string }>
 }
 
-const navigation: NavigationItem[] = [
+// Navegação para ADMIN_TRANSPORTADORA
+const adminNavigation: NavigationItem[] = [
   { name: 'Painel', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Transportadoras', href: '/transportadoras', icon: Truck },
   { name: 'Motoristas', href: '/motoristas', icon: Users },
@@ -37,11 +39,22 @@ const navigation: NavigationItem[] = [
   { name: 'Acertos', href: '/acertos', icon: Calculator },
 ]
 
+// Navegação para MOTORISTA
+const motoristaNavigation: NavigationItem[] = [
+  { name: 'Viagens', href: '/viagens', icon: Route },
+  { name: 'Receitas', href: '/receitas', icon: DollarSign },
+  { name: 'Despesas', href: '/despesas', icon: Receipt },
+  { name: 'Acertos', href: '/acertos', icon: Calculator },
+]
+
 export function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [userInfo, setUserInfo] = useState<{ email: string; role: string; nome?: string } | null>(null)
+  const { userInfo, loading } = useUser()
   const pathname = usePathname()
   const router = useRouter()
+
+  // Determinar qual navegação usar baseado no role do usuário
+  const navigation = userInfo?.role === 'MOTORISTA' ? motoristaNavigation : adminNavigation
 
   const handleNavigation = (href: string) => {
     router.push(href)
@@ -50,26 +63,17 @@ export function Layout({ children }: LayoutProps) {
 
   const currentPage = navigation.find(item => item.href === pathname)
 
-  useEffect(() => {
-    const loadMe = async () => {
-      try {
-        const res = await fetch('/api/auth/me', { cache: 'no-store' })
-        if (res.ok) {
-          const me = await res.json()
-          setUserInfo({
-            email: me.email,
-            role: me.role,
-            nome: me.motorista?.nome || me.transportadora?.nome,
-          })
-        } else {
-          setUserInfo(null)
-        }
-      } catch {
-        setUserInfo(null)
-      }
-    }
-    loadMe()
-  }, [])
+  // Mostrar loading enquanto carrega os dados do usuário
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Truck className="h-12 w-12 text-blue-600 mx-auto mb-4 animate-pulse" />
+          <p className="text-lg font-medium text-gray-700">Carregando...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -114,7 +118,7 @@ export function Layout({ children }: LayoutProps) {
                     <User className="h-4 w-4 text-slate-300" />
                   </div>
                   <div className="hidden xl:block">
-                    <p className="text-sm font-medium text-white">{userInfo?.nome || userInfo?.email || 'Usuário'}</p>
+                    <p className="text-sm font-medium text-white">{userInfo?.motorista?.nome || userInfo?.transportadora?.nome || userInfo?.email || 'Usuário'}</p>
                     <p className="text-xs text-slate-400">{userInfo?.role === 'MOTORISTA' ? 'Motorista' : userInfo?.role ? 'Administrador' : ''}</p>
                   </div>
                 </div>
@@ -184,7 +188,7 @@ export function Layout({ children }: LayoutProps) {
                 <User className="h-5 w-5 text-slate-300" />
               </div>
               <div>
-                <p className="text-sm font-medium text-white">{userInfo?.nome || userInfo?.email || 'Usuário'}</p>
+                <p className="text-sm font-medium text-white">{userInfo?.motorista?.nome || userInfo?.transportadora?.nome || userInfo?.email || 'Usuário'}</p>
                 <p className="text-xs text-slate-400">{userInfo?.role === 'MOTORISTA' ? 'Motorista' : userInfo?.role ? 'Administrador' : ''}</p>
               </div>
             </div>
