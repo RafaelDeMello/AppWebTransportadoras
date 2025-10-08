@@ -50,6 +50,30 @@ export function Layout({ children }: LayoutProps) {
   const pathname = usePathname()
   const router = useRouter()
 
+  // Páginas onde a navbar não deve aparecer
+  const authPages = ['/login', '/register', '/register-motorista', '/forgot-password', '/reset-password']
+  const isAuthPage = authPages.includes(pathname)
+
+  // Se for uma página de autenticação, renderizar apenas o conteúdo com navbar simples
+  if (isAuthPage) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {/* Navbar simples para páginas de autenticação */}
+        <nav className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-center items-center h-16">
+              <div className="flex items-center space-x-2">
+                <Truck className="h-8 w-8 text-blue-600" />
+                <span className="text-xl font-bold text-gray-900">TransApp</span>
+              </div>
+            </div>
+          </div>
+        </nav>
+        {children}
+      </div>
+    )
+  }
+
   // Determinar qual navegação usar baseado no role do usuário
   const navigation = userInfo?.role === 'MOTORISTA' ? motoristaNavigation : adminNavigation
 
