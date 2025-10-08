@@ -184,10 +184,12 @@ export default function ReceitasPage() {
               <Download className="mr-2 h-4 w-4" />
               Exportar
             </Button>
-            <Button onClick={handleNewReceita} size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Nova Receita
-            </Button>
+            {userInfo?.role === 'MOTORISTA' && (
+              <Button onClick={handleNewReceita} size="sm">
+                <Plus className="mr-2 h-4 w-4" />
+                Nova Receita
+              </Button>
+            )}
           </div>
         </div>
 

@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { Role } from '@/generated/prisma'
 
 const schema = z.object({
+  email: z.string().email(),
+  senha: z.string().min(6),
   transportadoraId: z.string().uuid(),
   nome: z.string().min(1),
   cpf: z.string().min(11),
@@ -16,40 +18,53 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const data = schema.parse(body)
+    const { email, senha, transportadoraId, nome, cpf, cnh, telefone } = data
 
     const { supabase } = createClient(request)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user || !user.email) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    // Criar usuário no Supabase
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password: senha
+    })
+    if (signUpError || !signUpData.user) {
+      return NextResponse.json({ error: 'Erro ao criar usuário no Supabase', details: signUpError?.message }, { status: 400 })
+    }
+    const supabaseUid = signUpData.user.id
 
-    const transportadora = await prisma.transportadora.findUnique({ where: { id: data.transportadoraId } })
+    // Verificar se transportadora existe
+    const transportadora = await prisma.transportadora.findUnique({ where: { id: transportadoraId } })
     if (!transportadora) return NextResponse.json({ error: 'Transportadora não encontrada' }, { status: 400 })
 
+    // Fluxo original: cria motorista e usuário sem obrigatoriedade rígida
     const motorista = await prisma.motorista.create({
       data: {
-        nome: data.nome,
-        cpf: data.cpf,
-        cnh: data.cnh || null,
-        telefone: data.telefone || null,
-        transportadoraId: data.transportadoraId,
+        nome,
+        cpf,
+        cnh: cnh || null,
+        telefone: telefone || null,
+        transportadoraId,
       },
     })
 
-    const existing = await prisma.usuario.findUnique({ where: { supabaseUid: user.id } })
+    const existing = await prisma.usuario.findUnique({ where: { supabaseUid } })
     const usuario = existing
       ? await prisma.usuario.update({
           where: { id: existing.id },
-          data: { role: Role.MOTORISTA, transportadoraId: data.transportadoraId, motoristaId: motorista.id },
+          data: { role: Role.MOTORISTA, transportadoraId, motoristaId: motorista.id },
         })
       : await prisma.usuario.create({
           data: {
-            email: user.email,
+            email,
             senhaHash: '-',
             role: Role.MOTORISTA,
-            transportadoraId: data.transportadoraId,
+            transportadoraId,
             motoristaId: motorista.id,
-            supabaseUid: user.id,
+            supabaseUid,
           },
         })
+
+    // Autenticar automaticamente
+    await supabase.auth.signInWithPassword({ email, password: senha })
 
     return NextResponse.json({ success: true, motoristaId: motorista.id, usuarioId: usuario.id })
   } catch (e) {

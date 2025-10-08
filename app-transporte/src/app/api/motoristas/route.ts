@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { createClient } from '@/lib/supabase/server';
 
 // Função para gerar código de validação único
 function gerarCodigoValidacao(): string {
@@ -24,10 +25,28 @@ const motoristaSchema = z.object({
 // GET - Listar todos os motoristas
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const transportadoraId = searchParams.get('transportadoraId');
+  // Recuperar usuário autenticado
+  const { supabase } = createClient(request);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
+    }
+    // Buscar dados completos do usuário
+    const usuario = await prisma.usuario.findUnique({
+      where: { supabaseUid: user.id },
+    });
+    if (!usuario) {
+      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 401 });
+    }
 
-    const whereClause = transportadoraId ? { transportadoraId } : {};
+    // Segurança: Admin só pode acessar motoristas da sua transportadora
+    const whereClause: { transportadoraId?: string } = {};
+    if (usuario.role === 'ADMIN_TRANSPORTADORA') {
+      whereClause.transportadoraId = usuario.transportadoraId ?? undefined;
+    } else if (usuario.role === 'MOTORISTA') {
+      // Motorista só pode acessar seu próprio cadastro
+      return NextResponse.json([], { status: 200 });
+    }
 
     const motoristas = await prisma.motorista.findMany({
       where: whereClause,

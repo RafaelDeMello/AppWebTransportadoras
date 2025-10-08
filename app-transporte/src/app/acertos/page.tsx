@@ -38,6 +38,9 @@ interface Acerto {
       id: string
       nome: string
     }
+    totalReceitas?: number
+    totalDespesas?: number
+    lucro?: number
   }
 }
 
@@ -255,10 +258,12 @@ export default function AcertosPage() {
               <Download className="mr-2 h-4 w-4" />
               Exportar
             </Button>
-            <Button onClick={handleNewAcerto} size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Acerto
-            </Button>
+            {userInfo?.role === 'MOTORISTA' && (
+              <Button onClick={handleNewAcerto} size="sm">
+                <Plus className="mr-2 h-4 w-4" />
+                Novo Acerto
+              </Button>
+            )}
           </div>
         </div>
 
@@ -429,6 +434,9 @@ export default function AcertosPage() {
                             <p>Motorista: {acerto.viagem.motorista.nome}</p>
                             <p>Transportadora: {acerto.viagem.transportadora.nome}</p>
                             <p>Viagem: {acerto.viagem.descricao}</p>
+                            <p>Receitas: <span className="font-semibold text-emerald-600">{formatCurrency(acerto.viagem.totalReceitas || 0)}</span></p>
+                            <p>Despesas: <span className="font-semibold text-red-600">{formatCurrency(acerto.viagem.totalDespesas || 0)}</span></p>
+                            <p>Lucro: <span className={`font-semibold ${ (acerto.viagem.lucro || 0) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{formatCurrency(acerto.viagem.lucro || 0)}</span></p>
                           </>
                         )}
                       </div>

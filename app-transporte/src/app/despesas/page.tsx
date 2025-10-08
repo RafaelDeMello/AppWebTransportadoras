@@ -194,10 +194,12 @@ export default function DespesasPage() {
               <Download className="mr-2 h-4 w-4" />
               Exportar
             </Button>
-            <Button onClick={handleNewDespesa} size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Nova Despesa
-            </Button>
+            {userInfo?.role === 'MOTORISTA' && (
+              <Button onClick={handleNewDespesa} size="sm">
+                <Plus className="mr-2 h-4 w-4" />
+                Nova Despesa
+              </Button>
+            )}
           </div>
         </div>
 

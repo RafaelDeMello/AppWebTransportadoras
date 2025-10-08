@@ -25,36 +25,17 @@ model Transportadora {
   id        String   @id @default(uuid())
   nome      String
   cnpj      String   @unique
-  email     String
+  email     String   @unique
+  senhaHash String
   telefone  String?
   endereco  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  usuarios   Usuario[]
   motoristas Motorista[]
   viagens    Viagem[]
 
   @@map("transportadoras")
-}
-
-model Usuario {
-  id               String          @id @default(uuid())
-  email            String          @unique
-  senhaHash        String
-  role             Role
-  transportadoraId String?
-  motoristaId      String?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  supabaseUid      String          @unique
-
-  transportadora   Transportadora? @relation(fields: [transportadoraId], references: [id])
-  motorista        Motorista?      @relation(fields: [motoristaId], references: [id])
-
-  @@index([transportadoraId])
-  @@index([motoristaId])
-  @@map("usuarios")
 }
 
 model Motorista {
@@ -64,18 +45,20 @@ model Motorista {
   cnh              String?
   telefone         String?
   transportadoraId String
-  codigoValidacao  String?  @unique
+  codigoValidacao  String   @unique
   validado         Boolean  @default(false)
+  email            String   @unique
+  senhaHash        String
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   transportadora Transportadora @relation(fields: [transportadoraId], references: [id])
-  usuarios       Usuario[]
   viagens        Viagem[]
 
   @@index([transportadoraId])
   @@map("motoristas")
 }
+
 
 model Viagem {
   id               String       @id @default(uuid())

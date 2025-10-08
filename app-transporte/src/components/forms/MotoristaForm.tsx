@@ -11,6 +11,8 @@ interface MotoristaFormData {
   nome: string
   cpf: string
   cnh: string
+  email: string
+  senha: string
   telefone?: string
   endereco?: string
   dataNascimento?: string
@@ -41,14 +43,16 @@ export function MotoristaForm({
   transportadoraId // Nova prop
 }: MotoristaFormProps) {
   const [formData, setFormData] = useState<MotoristaFormData>({
-    nome: '',
-    cpf: '',
-    cnh: '',
-    telefone: '',
-    endereco: '',
-    dataNascimento: '',
-    transportadoraId: transportadoraId || '', // Inicializa com prop
-    status: 'ATIVO'
+  nome: '',
+  cpf: '',
+  cnh: '',
+  email: '',
+  senha: '',
+  telefone: '',
+  endereco: '',
+  dataNascimento: '',
+  transportadoraId: transportadoraId || '', // Inicializa com prop
+  status: 'ATIVO'
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -88,6 +92,8 @@ export function MotoristaForm({
         nome: motorista.nome,
         cpf: motorista.cpf,
         cnh: motorista.cnh,
+        email: motorista.email || '',
+        senha: '',
         telefone: motorista.telefone || '',
         endereco: motorista.endereco || '',
         dataNascimento: motorista.dataNascimento || '',
@@ -99,6 +105,8 @@ export function MotoristaForm({
         nome: '',
         cpf: '',
         cnh: '',
+        email: '',
+        senha: '',
         telefone: '',
         endereco: '',
         dataNascimento: '',
@@ -148,8 +156,15 @@ export function MotoristaForm({
   }
 
   const validateForm = (): boolean => {
-    // Validação removida para testes
-    return true
+  const newErrors: Record<string, string> = {}
+  if (!formData.nome.trim()) newErrors.nome = 'Nome é obrigatório'
+  if (!formData.cpf.trim() || formData.cpf.replace(/\D/g, '').length !== 11) newErrors.cpf = 'CPF deve ter 11 dígitos'
+  if (!formData.cnh.trim() || formData.cnh.length < 11) newErrors.cnh = 'CNH deve ter 11 dígitos'
+  if (!formData.email.trim()) newErrors.email = 'Email é obrigatório'
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Email inválido'
+  if (!formData.senha.trim() || formData.senha.length < 6) newErrors.senha = 'Senha deve ter pelo menos 6 caracteres'
+  setErrors(newErrors)
+  return Object.keys(newErrors).length === 0
   }
 
   const handleInputChange = (field: keyof MotoristaFormData, value: string) => {
@@ -221,6 +236,34 @@ export function MotoristaForm({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  placeholder="email@exemplo.com"
+                  className={errors.email ? 'border-red-500' : ''}
+                />
+                {errors.email && (
+                  <p className="text-sm text-red-500 mt-1">{errors.email}</p>
+                )}
+              </div>
+              <div className="md:col-span-2">
+                <Label htmlFor="senha">Senha *</Label>
+                <Input
+                  id="senha"
+                  type="password"
+                  value={formData.senha}
+                  onChange={(e) => handleInputChange('senha', e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  className={errors.senha ? 'border-red-500' : ''}
+                />
+                {errors.senha && (
+                  <p className="text-sm text-red-500 mt-1">{errors.senha}</p>
+                )}
+              </div>
             <div className="md:col-span-2">
               <Label htmlFor="nome">Nome Completo *</Label>
               <Input

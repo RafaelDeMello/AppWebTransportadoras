@@ -10,7 +10,8 @@ import { X, Save, Building2 } from 'lucide-react'
 interface TransportadoraFormData {
   nome: string
   cnpj: string
-  email?: string
+  email: string
+  senha: string
   telefone?: string
   endereco?: string
 }
@@ -32,6 +33,7 @@ export function TransportadoraForm({
     nome: transportadora?.nome || '',
     cnpj: transportadora?.cnpj || '',
     email: transportadora?.email || '',
+    senha: '',
     telefone: transportadora?.telefone || '',
     endereco: transportadora?.endereco || ''
   })
@@ -44,15 +46,18 @@ export function TransportadoraForm({
     if (!formData.nome.trim()) {
       newErrors.nome = 'Nome é obrigatório'
     }
-
     if (!formData.cnpj.trim()) {
       newErrors.cnpj = 'CNPJ é obrigatório'
     } else if (!/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/.test(formData.cnpj)) {
       newErrors.cnpj = 'CNPJ deve estar no formato XX.XXX.XXX/XXXX-XX'
     }
-
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email é obrigatório'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Email deve ter um formato válido'
+    }
+    if (!formData.senha.trim() || formData.senha.length < 6) {
+      newErrors.senha = 'Senha deve ter pelo menos 6 caracteres'
     }
 
     if (formData.telefone && !/^\(\d{2}\)\s\d{1}\s\d{4}-\d{4}$/.test(formData.telefone)) {
@@ -183,6 +188,21 @@ export function TransportadoraForm({
                 )}
               </div>
 
+              {/* Senha */}
+              <div className="space-y-2">
+                <Label htmlFor="senha">Senha *</Label>
+                <Input
+                  id="senha"
+                  type="password"
+                  value={formData.senha}
+                  onChange={(e) => handleInputChange('senha', e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  className={errors.senha ? 'border-red-500' : ''}
+                />
+                {errors.senha && (
+                  <p className="text-sm text-red-600">{errors.senha}</p>
+                )}
+              </div>
               {/* Telefone */}
               <div className="space-y-2">
                 <Label htmlFor="telefone">Telefone</Label>

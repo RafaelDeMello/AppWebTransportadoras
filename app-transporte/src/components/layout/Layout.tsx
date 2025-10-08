@@ -31,11 +31,8 @@ interface NavigationItem {
 // Navegação para ADMIN_TRANSPORTADORA
 const adminNavigation: NavigationItem[] = [
   { name: 'Painel', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Transportadoras', href: '/transportadoras', icon: Truck },
   { name: 'Motoristas', href: '/motoristas', icon: Users },
   { name: 'Viagens', href: '/viagens', icon: Route },
-  { name: 'Receitas', href: '/receitas', icon: DollarSign },
-  { name: 'Despesas', href: '/despesas', icon: Receipt },
   { name: 'Acertos', href: '/acertos', icon: Calculator },
 ]
 

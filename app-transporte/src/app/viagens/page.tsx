@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Route as RouteIcon
 } from 'lucide-react'
+import { ViagemForm } from '@/components/forms/ViagemForm'
 
 // Tipos
 interface ViagemItem {
@@ -36,11 +37,27 @@ interface ViagemItem {
 }
 
 export default function ViagensPage() {
+  const [formattedDates, setFormattedDates] = useState<Record<string, { inicio: string; fim?: string }>>({})
   const { userInfo } = useUser()
   const [viagens, setViagens] = useState<ViagemItem[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<'TODAS' | 'PLANEJADA' | 'EM_ANDAMENTO' | 'FINALIZADA' | 'CANCELADA'>('TODAS')
+  const [showForm, setShowForm] = useState(false)
+  const [formLoading, setFormLoading] = useState(false)
+
+  // useEffect para formatar datas (deve vir após a declaração de viagens)
+    useEffect(() => {
+      const dates: Record<string, { inicio: string; fim?: string }> = {}
+      viagens.forEach(v => {
+        dates[v.id] = {
+          inicio: v.dataInicio ? new Date(v.dataInicio).toLocaleDateString('pt-BR') : '',
+          fim: v.dataFim ? new Date(v.dataFim).toLocaleDateString('pt-BR') : undefined
+        }
+      })
+      setFormattedDates(dates)
+    }, [viagens])
+  
 
   // Carregar dados da API
   useEffect(() => {
@@ -104,7 +121,7 @@ export default function ViagensPage() {
   }
 
   const handleAdd = () => {
-    console.log('Adicionar nova viagem')
+  setShowForm(true)
   }
 
   const getStatusColor = (status: string) => {
@@ -177,7 +194,7 @@ export default function ViagensPage() {
   }
 
   return (
-    <Layout>
+  <Layout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -190,10 +207,12 @@ export default function ViagensPage() {
               Gerencie as viagens da transportadora
             </p>
           </div>
-          <Button onClick={handleAdd} className="sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Viagem
-          </Button>
+          {userInfo?.role === 'MOTORISTA' && (
+            <Button onClick={handleAdd} className="sm:w-auto">
+              <Plus className="mr-2 h-4 w-4" />
+              Nova Viagem
+            </Button>
+          )}
         </div>
 
         {/* Search and Filters */}
@@ -365,8 +384,8 @@ export default function ViagensPage() {
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Calendar className="h-4 w-4" />
                     <span>
-                      Início: {formatDate(viagem.dataInicio)}
-                      {viagem.dataFim && ` | Fim: ${formatDate(viagem.dataFim)}`}
+                      Início: {formattedDates[viagem.id]?.inicio}
+                      {formattedDates[viagem.id]?.fim && ` | Fim: ${formattedDates[viagem.id].fim}`}
                     </span>
                   </div>
                   
@@ -375,31 +394,7 @@ export default function ViagensPage() {
                     <p><strong>Transportadora:</strong> {viagem.transportadora?.nome || 'N/A'}</p>
                   </div>
 
-                  {viagem.status === 'PLANEJADA' && (
-                    <div className="pt-3 border-t">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="w-full"
-                        onClick={async () => {
-                          try {
-                            const res = await fetch(`/api/viagens/${viagem.id}`, {
-                              method: 'PUT',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ status: 'EM_ANDAMENTO' })
-                            })
-                            if (res.ok) {
-                              const updated = await res.json()
-                              setViagens(prev => prev.map(v => v.id === viagem.id ? updated : v))
-                            }
-                          } catch (e) { console.error(e) }
-                        }}
-                      >
-                        <Clock className="mr-2 h-4 w-4" />
-                        Iniciar Viagem
-                      </Button>
-                    </div>
-                  )}
+                  {viagem.status === 'PLANEJADA' && null}
 
                   {viagem.status === 'EM_ANDAMENTO' && (
                     <div className="pt-3 border-t">
@@ -445,7 +440,7 @@ export default function ViagensPage() {
                   ? 'Tente ajustar os filtros de busca'
                   : 'Comece adicionando sua primeira viagem'}
               </p>
-              {!searchTerm && statusFilter === 'TODAS' && (
+              {!searchTerm && statusFilter === 'TODAS' && userInfo?.role === 'MOTORISTA' && (
                 <Button onClick={handleAdd}>
                   <Plus className="mr-2 h-4 w-4" />
                   Adicionar Viagem
@@ -455,6 +450,43 @@ export default function ViagensPage() {
           </Card>
         )}
       </div>
+      {/* Modal Formulário de Viagem */}
+      {showForm && userInfo?.role === 'MOTORISTA' && (
+        <ViagemForm
+          onSave={async (data) => {
+            setFormLoading(true)
+            try {
+              // Converter datas para formato ISO
+              const dataInicioISO = data.dataInicio ? new Date(data.dataInicio).toISOString() : undefined
+              const dataFimISO = data.dataFim ? new Date(data.dataFim).toISOString() : undefined
+              const res = await fetch('/api/viagens', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  ...data,
+                  dataInicio: dataInicioISO,
+                  dataFim: dataFimISO,
+                  motoristaId: userInfo.motorista?.id,
+                  transportadoraId: userInfo.transportadora?.id
+                })
+              })
+              if (res.ok) {
+                const novaViagem = await res.json()
+                setViagens(prev => [novaViagem, ...prev])
+                setShowForm(false)
+              } else {
+                const err = await res.json().catch(() => ({}))
+                alert(err.error || 'Erro ao cadastrar viagem')
+              }
+            } catch (error) {
+              alert('Erro ao cadastrar viagem')
+            } finally {
+              setFormLoading(false)
+            }
+          }}
+          onCancel={() => setShowForm(false)}
+        />
+      )}
     </Layout>
   )
 }
