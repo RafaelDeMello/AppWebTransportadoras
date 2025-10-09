@@ -74,8 +74,8 @@ export function Layout({ children }: LayoutProps) {
     )
   }
 
-  // Determinar qual navegação usar baseado no role do usuário
-  const navigation = userInfo?.role === 'MOTORISTA' ? motoristaNavigation : adminNavigation
+  // Determinar qual navegação usar baseado no type do usuário
+  const navigation = userInfo?.type === 'MOTORISTA' ? motoristaNavigation : adminNavigation
 
   const handleNavigation = (href: string) => {
     router.push(href)
@@ -140,7 +140,7 @@ export function Layout({ children }: LayoutProps) {
                   </div>
                   <div className="hidden xl:block">
                     <p className="text-sm font-medium text-white">{userInfo?.motorista?.nome || userInfo?.transportadora?.nome || userInfo?.email || 'Usuário'}</p>
-                    <p className="text-xs text-slate-400">{userInfo?.role === 'MOTORISTA' ? 'Motorista' : userInfo?.role ? 'Administrador' : ''}</p>
+                    <p className="text-xs text-slate-400">{userInfo?.type === 'MOTORISTA' ? 'Motorista' : userInfo?.type ? 'Administrador' : ''}</p>
                   </div>
                 </div>
                 <Button
@@ -210,7 +210,7 @@ export function Layout({ children }: LayoutProps) {
               </div>
               <div>
                 <p className="text-sm font-medium text-white">{userInfo?.motorista?.nome || userInfo?.transportadora?.nome || userInfo?.email || 'Usuário'}</p>
-                <p className="text-xs text-slate-400">{userInfo?.role === 'MOTORISTA' ? 'Motorista' : userInfo?.role ? 'Administrador' : ''}</p>
+                <p className="text-xs text-slate-400">{userInfo?.type === 'MOTORISTA' ? 'Motorista' : userInfo?.type ? 'Administrador' : ''}</p>
               </div>
             </div>
             <Button

@@ -9,73 +9,56 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum Role {
-  ADMIN_TRANSPORTADORA
-  MOTORISTA
-}
-
-enum StatusViagem {
-  PLANEJADA
-  EM_ANDAMENTO
-  FINALIZADA
-  CANCELADA
-}
-
 model Transportadora {
-  id        String   @id @default(uuid())
-  nome      String
-  cnpj      String   @unique
-  email     String   @unique
-  senhaHash String
-  telefone  String?
-  endereco  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id         String      @id @default(uuid())
+  nome       String
+  cnpj       String      @unique
+  email      String
+  telefone   String?
+  endereco   String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
   motoristas Motorista[]
+  usuarios   usuarios[]
   viagens    Viagem[]
 
   @@map("transportadoras")
 }
 
 model Motorista {
-  id               String   @id @default(uuid())
+  id               String         @id @default(uuid())
   nome             String
-  cpf              String   @unique
+  cpf              String         @unique
   cnh              String?
   telefone         String?
   transportadoraId String
-  codigoValidacao  String   @unique
-  validado         Boolean  @default(false)
-  email            String   @unique
-  senhaHash        String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  transportadora Transportadora @relation(fields: [transportadoraId], references: [id])
-  viagens        Viagem[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  codigoValidacao  String?        @unique
+  validado         Boolean        @default(false)
+  transportadora   Transportadora @relation(fields: [transportadoraId], references: [id])
+  usuarios         usuarios[]
+  viagens          Viagem[]
 
   @@index([transportadoraId])
   @@map("motoristas")
 }
 
-
 model Viagem {
-  id               String       @id @default(uuid())
+  id               String         @id @default(uuid())
   descricao        String
   dataInicio       DateTime
   dataFim          DateTime?
-  status           StatusViagem @default(PLANEJADA)
+  status           StatusViagem   @default(PLANEJADA)
   transportadoraId String
   motoristaId      String
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-
-  transportadora Transportadora @relation(fields: [transportadoraId], references: [id])
-  motorista      Motorista      @relation(fields: [motoristaId], references: [id])
-  receitas       Receita[]
-  despesas       Despesa[]
-  acerto         Acerto?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  acerto           Acerto?
+  despesas         Despesa[]
+  receitas         Receita[]
+  motorista        Motorista      @relation(fields: [motoristaId], references: [id])
+  transportadora   Transportadora @relation(fields: [transportadoraId], references: [id])
 
   @@index([transportadoraId])
   @@index([motoristaId])
@@ -90,8 +73,7 @@ model Receita {
   descricao String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  viagem Viagem @relation(fields: [viagemId], references: [id])
+  viagem    Viagem   @relation(fields: [viagemId], references: [id])
 
   @@index([viagemId])
   @@map("receitas")
@@ -104,8 +86,7 @@ model Despesa {
   descricao String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  viagem Viagem @relation(fields: [viagemId], references: [id])
+  viagem    Viagem   @relation(fields: [viagemId], references: [id])
 
   @@index([viagemId])
   @@map("despesas")
@@ -118,8 +99,36 @@ model Acerto {
   pago      Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  viagem Viagem @relation(fields: [viagemId], references: [id])
+  viagem    Viagem   @relation(fields: [viagemId], references: [id])
 
   @@map("acertos")
+}
+
+model usuarios {
+  id               String          @id
+  email            String          @unique
+  senhaHash        String
+  role             Role
+  transportadoraId String?
+  motoristaId      String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime
+  supabaseUid      String          @unique
+  motoristas       Motorista?      @relation(fields: [motoristaId], references: [id])
+  transportadoras  Transportadora? @relation(fields: [transportadoraId], references: [id])
+
+  @@index([motoristaId])
+  @@index([transportadoraId])
+}
+
+enum Role {
+  ADMIN_TRANSPORTADORA
+  MOTORISTA
+}
+
+enum StatusViagem {
+  PLANEJADA
+  EM_ANDAMENTO
+  FINALIZADA
+  CANCELADA
 }

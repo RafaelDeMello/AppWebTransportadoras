@@ -2,22 +2,19 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/lib/UserContext'
 
 export default function LogoutPage() {
   const router = useRouter()
-  const { reset } = useUser()
+  const { logout } = useUser()
   
   useEffect(() => {
     const doLogout = async () => {
-      const supabase = createClient()
-      await supabase.auth.signOut()
-      // Limpar o contexto do usuário
-      reset()
+      await logout()
       router.replace('/login')
     }
     void doLogout()
-  }, [router, reset])
+  }, [router, logout])
+  
   return null
 }

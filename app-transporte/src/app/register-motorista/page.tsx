@@ -1,24 +1,49 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { useUser } from '@/lib/UserContext'
 import { Layout } from '@/components/layout/Layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
+interface Transportadora {
+  id: string
+  nome: string
+}
+
 export default function RegisterMotoristaPage() {
+  const [nome, setNome] = useState('')
   const [cpf, setCpf] = useState('')
-  const [codigoValidacao, setCodigoValidacao] = useState('')
-  const [password, setPassword] = useState('')
+  const [cnh, setCnh] = useState('')
+  const [telefone, setTelefone] = useState('')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [transportadoraId, setTransportadoraId] = useState('')
+  const [transportadoras, setTransportadoras] = useState<Transportadora[]>([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
+  const { login } = useUser()
+
+  // Carregar lista de transportadoras
+  useEffect(() => {
+    const fetchTransportadoras = async () => {
+      try {
+        const response = await fetch('/api/transportadoras')
+        if (response.ok) {
+          const data = await response.json()
+          setTransportadoras(data)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar transportadoras:', error)
+      }
+    }
+    fetchTransportadoras()
+  }, [])
 
   const formatCPF = (value: string) => {
     const digits = value.replace(/\D/g, '').slice(0, 11) // Limita a 11 dígitos
@@ -34,62 +59,59 @@ export default function RegisterMotoristaPage() {
     setLoading(true)
 
     try {
-      // Validações cliente
+      // Validações
+      if (!nome || nome.length < 3) {
+        throw new Error('Nome deve ter pelo menos 3 caracteres')
+      }
+      
       const cpfSoNumeros = cpf.replace(/\D/g, '')
       if (cpfSoNumeros.length !== 11) {
         throw new Error('CPF deve ter 11 dígitos')
       }
-      if (!codigoValidacao || codigoValidacao.length !== 6) {
-        throw new Error('Código de validação deve ter 6 caracteres')
-      }
+      
       if (password.length < 6) {
         throw new Error('Senha deve ter pelo menos 6 caracteres')
       }
+      
       if (!email.includes('@')) {
         throw new Error('Email inválido')
       }
 
-      // PASSO 1: Criar conta no Supabase primeiro
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-      })
-
-      if (signUpError) {
-        const msg = signUpError.message?.toLowerCase?.() || ''
-        if (msg.includes('already registered') || msg.includes('já registrado')) {
-          const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-          if (signInError) {
-            throw new Error(`Erro ao autenticar: ${signInError.message}`)
-          }
-        } else {
-          throw new Error(`Erro ao criar conta: ${signUpError.message}`)
-        }
+      if (!transportadoraId) {
+        throw new Error('Selecione uma transportadora')
       }
 
-      // PASSO 2: Sincronizar com nossa tabela Usuario
-      await fetch('/api/auth/sync', { method: 'POST' })
-
-      // PASSO 3: Agora validar CPF + código (com autenticação ativa)
-      const validateRes = await fetch('/api/auth/validate-motorista', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      // Registrar motorista
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          email, 
+          password, 
+          nome, 
+          type: "MOTORISTA",
           cpf: cpfSoNumeros,
-          codigoValidacao: codigoValidacao.toUpperCase(),
+          cnh: cnh || undefined,
+          telefone: telefone || undefined,
+          transportadoraId,
         }),
       })
 
-      if (!validateRes.ok) {
-        const j = await validateRes.json().catch(() => ({}))
-        throw new Error(j.error || 'Falha na validação do CPF/código')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Erro ao registrar")
       }
 
       setSuccess(true)
       setError('')
-      router.push('/dashboard')
+      
+      // Fazer login automático após registro
+      const loginSuccess = await login(email, password)
+      if (loginSuccess) {
+        router.push("/dashboard")
+      }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro no cadastro'
+      const message = err instanceof Error ? err.message : "Erro no cadastro"
       setError(message)
     } finally {
       setLoading(false)
@@ -118,13 +140,25 @@ export default function RegisterMotoristaPage() {
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-center">Registro de Motorista</CardTitle>
             <CardDescription className="text-center">
-              Digite seu CPF e o código fornecido pelo administrador
+              Preencha os dados para criar sua conta de motorista
             </CardDescription>
           </CardHeader>
           <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="nome">Nome Completo *</Label>
+              <Input
+                id="nome"
+                type="text"
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                required
+                placeholder="Seu nome completo"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email *</Label>
               <Input
                 id="email"
                 type="email"
@@ -132,13 +166,11 @@ export default function RegisterMotoristaPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="seu@email.com"
-                className="!text-white"
-                style={{ color: 'white' }}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password">Senha *</Label>
               <Input
                 id="password"
                 type="password"
@@ -146,13 +178,11 @@ export default function RegisterMotoristaPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="Mínimo 6 caracteres"
-                className="!text-white"
-                style={{ color: 'white' }}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="cpf">CPF</Label>
+              <Label htmlFor="cpf">CPF *</Label>
               <Input
                 id="cpf"
                 type="text"
@@ -161,24 +191,47 @@ export default function RegisterMotoristaPage() {
                 required
                 placeholder="000.000.000-00"
                 maxLength={14}
-                className="!text-white"
-                style={{ color: 'white' }}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="codigo">Código de Validação</Label>
+              <Label htmlFor="cnh">CNH</Label>
               <Input
-                id="codigo"
+                id="cnh"
                 type="text"
-                value={codigoValidacao}
-                onChange={(e) => setCodigoValidacao(e.target.value.toUpperCase())}
-                required
-                placeholder="ABC123"
-                maxLength={6}
-                className="!text-white font-mono"
-                style={{ color: 'white' }}
+                value={cnh}
+                onChange={(e) => setCnh(e.target.value)}
+                placeholder="Número da CNH"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="telefone">Telefone</Label>
+              <Input
+                id="telefone"
+                type="text"
+                value={telefone}
+                onChange={(e) => setTelefone(e.target.value)}
+                placeholder="(XX) XXXXX-XXXX"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="transportadora">Transportadora *</Label>
+              <select
+                id="transportadora"
+                value={transportadoraId}
+                onChange={(e) => setTransportadoraId(e.target.value)}
+                required
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="">Selecione uma transportadora</option>
+                {transportadoras.map((transportadora) => (
+                  <option key={transportadora.id} value={transportadora.id}>
+                    {transportadora.nome}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {error && (

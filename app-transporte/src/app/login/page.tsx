@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useUser } from '@/lib/UserContext'
 import { Layout } from '@/components/layout/Layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,32 +11,50 @@ import { Button } from '@/components/ui/button'
 
 export default function LoginPage() {
   const router = useRouter()
-  const { refetch } = useUser()
+  const searchParams = useSearchParams()
+  const { login } = useUser()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const redirectPath = searchParams.get('redirect') || '/dashboard'
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setLoading(true)
+    
+    console.log('🔵 [LOGIN] Iniciando processo de login...')
+    console.log('🔵 [LOGIN] Email:', email)
+    console.log('🔵 [LOGIN] Redirect path:', redirectPath)
+    
     try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) throw error
-
-      // Sincroniza usuário com tabela Usuario
-      await fetch('/api/auth/sync', { method: 'POST' })
-
-      // Atualiza o contexto do usuário após login bem-sucedido
-      await refetch()
-
-      router.push('/dashboard')
+      console.log('🔵 [LOGIN] Chamando função login do UserContext...')
+      const result = await login(email, password)
+      console.log('🔵 [LOGIN] Resultado do login:', result)
+      
+      if (result.success) {
+        console.log('✅ [LOGIN] Login bem-sucedido! Redirecionando para:', redirectPath)
+        console.log('🔵 [LOGIN] Tentando router.push...')
+        router.push(redirectPath)
+        
+        // Fallback: forçar redirecionamento após um pequeno delay
+        console.log('🔵 [LOGIN] Configurando fallback com window.location...')
+        setTimeout(() => {
+          console.log('🔵 [LOGIN] Executando fallback - window.location.href')
+          window.location.href = redirectPath
+        }, 200)
+      } else {
+        console.log('❌ [LOGIN] Falha no login:', result.error)
+        setError(result.error || 'Email ou senha inválidos')
+      }
     } catch (err: unknown) {
+      console.error('💥 [LOGIN] Erro durante o login:', err)
       const message = err instanceof Error ? err.message : 'Falha no login'
       setError(message)
     } finally {
+      console.log('🔵 [LOGIN] Finalizando processo de login')
       setLoading(false)
     }
   }
