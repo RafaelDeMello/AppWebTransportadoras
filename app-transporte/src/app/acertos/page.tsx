@@ -77,7 +77,7 @@ export default function AcertosPage() {
           url.searchParams.set('pago', showPaidOnly.toString())
         }
         
-        if (userInfo.role === 'MOTORISTA' && userInfo.motorista?.id) {
+  if (userInfo.type === 'MOTORISTA' && userInfo.motorista?.id) {
           url.searchParams.set('motoristaId', userInfo.motorista.id)
         }
         
@@ -258,7 +258,7 @@ export default function AcertosPage() {
               <Download className="mr-2 h-4 w-4" />
               Exportar
             </Button>
-            {userInfo?.role === 'MOTORISTA' && (
+            {userInfo?.type === 'MOTORISTA' && (
               <Button onClick={handleNewAcerto} size="sm">
                 <Plus className="mr-2 h-4 w-4" />
                 Novo Acerto

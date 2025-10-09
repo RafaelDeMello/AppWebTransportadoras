@@ -51,7 +51,7 @@ export default function ReceitasPage() {
       try {
         // Carregar receitas (filtrando por motorista se necessário)
         let receitasUrl = '/api/receitas'
-        if (userInfo.role === 'MOTORISTA' && userInfo.motorista?.id) {
+  if (userInfo.type === 'MOTORISTA' && userInfo.motorista?.id) {
           receitasUrl += `?motoristaId=${userInfo.motorista.id}`
         }
 
@@ -184,7 +184,7 @@ export default function ReceitasPage() {
               <Download className="mr-2 h-4 w-4" />
               Exportar
             </Button>
-            {userInfo?.role === 'MOTORISTA' && (
+            {userInfo?.type === 'MOTORISTA' && (
               <Button onClick={handleNewReceita} size="sm">
                 <Plus className="mr-2 h-4 w-4" />
                 Nova Receita

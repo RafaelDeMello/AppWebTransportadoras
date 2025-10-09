@@ -57,7 +57,7 @@ export default function DespesasPage() {
       try {
         // Carregar despesas (filtrando por motorista se necessário)
         let despesasUrl = '/api/despesas'
-        if (userInfo.role === 'MOTORISTA' && userInfo.motorista?.id) {
+  if (userInfo.type === 'MOTORISTA' && userInfo.motorista?.id) {
           despesasUrl += `?motoristaId=${userInfo.motorista.id}`
         }
 
@@ -194,7 +194,7 @@ export default function DespesasPage() {
               <Download className="mr-2 h-4 w-4" />
               Exportar
             </Button>
-            {userInfo?.role === 'MOTORISTA' && (
+            {userInfo?.type === 'MOTORISTA' && (
               <Button onClick={handleNewDespesa} size="sm">
                 <Plus className="mr-2 h-4 w-4" />
                 Nova Despesa
