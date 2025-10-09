@@ -92,9 +92,6 @@ export default function LoginPage() {
               <Button type="button" variant="outline" className="w-full mb-2" onClick={() => router.push('/register')}>
                 Criar conta - Transportadora
               </Button>
-              <Button type="button" variant="secondary" className="w-full" onClick={() => router.push('/register-motorista')}>
-                Criar conta - Motorista
-              </Button>
             </form>
           </CardContent>
         </Card>

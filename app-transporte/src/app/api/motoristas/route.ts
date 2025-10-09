@@ -25,29 +25,31 @@ const motoristaSchema = z.object({
 });
 
 // GET - Listar todos os motoristas
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-  // Implementar autenticação baseada em cookie/jwt futuramente
-  // Por enquanto, retorna todos os motoristas
-  const motoristas = await prisma.motorista.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: {
-      transportadora: {
-        select: {
-          id: true,
-          nome: true,
-        }
-      },
-      _count: {
-        select: {
-          viagens: true,
+    // Buscar transportadoraId do usuário logado (exemplo: via header ou cookie)
+    // Aqui, para simplificar, vamos supor que o transportadoraId vem via header
+    const transportadoraId = request.headers.get('x-transportadora-id');
+    if (!transportadoraId) {
+      return NextResponse.json({ error: 'Transportadora não identificada' }, { status: 401 });
+    }
+    const motoristas = await prisma.motorista.findMany({
+      where: { transportadoraId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        transportadora: {
+          select: {
+            id: true,
+            nome: true,
+          }
+        },
+        _count: {
+          select: {
+            viagens: true,
+          }
         }
       }
-    }
-  });
-  return NextResponse.json(motoristas);
-
-
+    });
     return NextResponse.json(motoristas);
   } catch (error) {
     console.error('Erro ao buscar motoristas:', error);

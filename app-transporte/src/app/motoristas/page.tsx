@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Layout } from '../../components/layout/Layout'
+import { useUser } from '@/lib/UserContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -59,14 +60,24 @@ export default function MotoristasPage() {
   const [transportadoraId, setTransportadoraId] = useState<string>('')
 
   // Carregar dados da API
+  const { userInfo } = useUser();
   useEffect(() => {
     const loadMotoristas = async () => {
       setIsLoading(true)
       try {
-        const response = await fetch('/api/motoristas')
+        const transportadoraId = userInfo?.transportadoraId || userInfo?.transportadora?.id;
+        if (!transportadoraId) {
+          setMotoristas([]);
+          setIsLoading(false);
+          return;
+        }
+        const response = await fetch('/api/motoristas', {
+          headers: {
+            'x-transportadora-id': transportadoraId
+          }
+        });
         if (response.ok) {
-          const data = await response.json()
-          // Mapear os dados da API para o formato esperado
+          const data = await response.json();
           const mappedData = data.map((m: {
             id: string;
             nome: string;
@@ -85,25 +96,24 @@ export default function MotoristasPage() {
             transportadoraNome: m.transportadora.nome,
             transportadoraId: m.transportadora.id,
             viagensFinalizadas: m._count?.viagens || 0,
-            viagensAtivas: 0, // Será calculado posteriormente se necessário
-            status: 'ATIVO', // Default para agora
+            viagensAtivas: 0,
+            status: 'ATIVO',
             createdAt: new Date(m.createdAt).toLocaleDateString('pt-BR')
-          }))
-          setMotoristas(mappedData)
+          }));
+          setMotoristas(mappedData);
         } else {
-          console.error('Erro ao carregar motoristas:', response.statusText)
-          setMotoristas([]) // Lista vazia se API falhar
+          console.error('Erro ao carregar motoristas:', response.statusText);
+          setMotoristas([]);
         }
       } catch (error) {
-        console.error('Erro ao carregar motoristas:', error)
-        setMotoristas([]) // Lista vazia se API falhar
+        console.error('Erro ao carregar motoristas:', error);
+        setMotoristas([]);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
-
-    loadMotoristas()
-  }, [])
+    };
+    loadMotoristas();
+  }, [userInfo]);
 
   // Filtrar motoristas
   const filteredMotoristas = motoristas.filter(motorista => {
