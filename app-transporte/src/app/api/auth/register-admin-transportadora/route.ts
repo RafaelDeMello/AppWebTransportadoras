@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar se já existe um usuário com este email
-    const existingUser = await prisma.usuario.findUnique({
+    const existingUser = await prisma.usuarios.findUnique({
       where: { email: data.email }
     })
 
@@ -31,12 +31,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Criar usuário na tabela Usuario
-    const usuario = await prisma.usuario.create({
+    const usuario = await prisma.usuarios.create({
       data: {
+        id: user.id, // usar o UID do Supabase como id do usuário
         email: data.email,
         senhaHash: '-', // placeholder: usamos Supabase para autenticação
         role: Role.ADMIN_TRANSPORTADORA, // Sempre será admin da transportadora
         supabaseUid: user.id,
+        updatedAt: new Date(),
       },
     })
 
@@ -51,7 +53,7 @@ export async function POST(request: NextRequest) {
       })
 
       // Atualizar usuário com transportadoraId
-      await prisma.usuario.update({
+      await prisma.usuarios.update({
         where: { id: usuario.id },
         data: { transportadoraId: transportadora.id },
       })

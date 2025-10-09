@@ -57,11 +57,6 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Motorista não encontrado' }, { status: 404 });
       }
       whereClause.motoristaId = usuario.motoristas.id;
-      // LOG: Diagnóstico de filtro
-      console.log('[VIAGENS] [MOTORISTA] decoded.type:', decoded.type)
-      console.log('[VIAGENS] [MOTORISTA] decoded.userId:', decoded.userId)
-      console.log('[VIAGENS] [MOTORISTA] usuario.motoristas.id:', usuario.motoristas.id)
-      console.log('[VIAGENS] [MOTORISTA] whereClause:', whereClause)
     } else if (decoded.type === 'TRANSPORTADORA') {
       // Transportadora só pode ver viagens dos motoristas vinculados a ela
       const usuario = await prisma.usuarios.findUnique({
@@ -85,11 +80,6 @@ export async function GET(request: NextRequest) {
         }
         whereClause.motoristaId = motoristaIdParam;
       }
-      // LOG: Diagnóstico de filtro
-      console.log('[VIAGENS] [TRANSPORTADORA] decoded.type:', decoded.type)
-      console.log('[VIAGENS] [TRANSPORTADORA] decoded.userId:', decoded.userId)
-      console.log('[VIAGENS] [TRANSPORTADORA] usuario.transportadoras.id:', usuario.transportadoras.id)
-      console.log('[VIAGENS] [TRANSPORTADORA] whereClause:', whereClause)
     }
     if (status) whereClause.status = status;
 
@@ -114,16 +104,6 @@ export async function GET(request: NextRequest) {
         acerto: true,
       }
     });
-
-    // LOG: Viagens retornadas
-    viagens.forEach(v => {
-      console.log('[VIAGENS] Viagem:', {
-        id: v.id,
-        motoristaId: v.motoristaId,
-        transportadoraId: v.transportadoraId,
-        descricao: v.descricao
-      })
-    })
     // Calcular totais para cada viagem
     const viagensComTotais = viagens.map(viagem => {
       const totalReceitas = viagem.receitas.reduce((sum, receita) => sum + Number(receita.valor), 0);

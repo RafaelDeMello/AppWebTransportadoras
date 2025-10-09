@@ -17,18 +17,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Se já existir, retorna
-    const existing = await prisma.usuario.findUnique({ where: { supabaseUid: user.id } })
+  const existing = await prisma.usuarios.findUnique({ where: { supabaseUid: user.id } })
     if (existing) {
       return NextResponse.json({ success: true, usuarioId: existing.id })
     }
 
     // Por ora, cadastramos como ADMIN_TRANSPORTADORA sem vincular a transportadora
-    const novo = await prisma.usuario.create({
+    const novo = await prisma.usuarios.create({
       data: {
+        id: user.id,
         email: user.email || '',
-        senhaHash: '-', // placeholder: usamos Supabase para autenticação
+        senhaHash: '-', // placeholder: autenticação via Supabase
         role: Role.ADMIN_TRANSPORTADORA,
         supabaseUid: user.id,
+        updatedAt: new Date(),
       },
     })
 

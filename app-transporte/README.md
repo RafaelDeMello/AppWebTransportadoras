@@ -1,36 +1,130 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# App Web Transportadoras
 
-## Getting Started
+Sistema de gestão para transportadoras e motoristas, desenvolvido com Next.js, Prisma e PostgreSQL.
 
-First, run the development server:
+## Funcionalidades
 
+- 🚚 **Gestão de Transportadoras**: Cadastro e gerenciamento de empresas transportadoras
+- 👥 **Gestão de Motoristas**: Registro e validação de motoristas vinculados às transportadoras
+- 🛣️ **Controle de Viagens**: Planejamento e acompanhamento de viagens
+- 💰 **Gestão Financeira**: Controle de receitas, despesas e acertos
+- 🔐 **Sistema de Autenticação**: Login seguro com JWT para transportadoras e motoristas
+- 📊 **Dashboard**: Visão geral das operações e métricas
+
+## Tecnologias
+
+- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
+- **Backend**: Next.js API Routes, Prisma ORM
+- **Banco de Dados**: PostgreSQL (Supabase)
+- **Autenticação**: JWT com cookies httpOnly
+- **UI Components**: Radix UI, Lucide Icons
+
+## Instalação e Configuração
+
+### 1. Clone o repositório
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/RafaelDeMello/AppWebTransportadoras.git
+cd AppWebTransportadoras/app-transporte
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Instale as dependências
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Configure as variáveis de ambiente
+```bash
+cp .env.example .env
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Edite o arquivo `.env` com suas configurações:
+- `DATABASE_URL`: URL de conexão com PostgreSQL
+- `JWT_SECRET`: Chave secreta para JWT (gere uma segura!)
+- Configurações do Supabase (se aplicável)
 
-## Learn More
+### 4. Execute as migrações do banco
+```bash
+npx prisma migrate deploy
+npx prisma generate
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 5. Inicie a aplicação
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Desenvolvimento:**
+```bash
+npm run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Produção:**
+```bash
+npm run build
+npm start
+```
 
-## Deploy on Vercel
+## Deploy
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Vercel (Recomendado)
+1. Conecte seu repositório no Vercel
+2. Configure as variáveis de ambiente
+3. Deploy automático!
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Docker
+```bash
+# Build da imagem
+docker build -t app-transportadoras .
+
+# Executar container
+docker run -p 3000:3000 --env-file .env app-transportadoras
+```
+
+## Estrutura do Projeto
+
+```
+src/
+├── app/                    # App Router (Next.js 13+)
+│   ├── api/               # API Routes
+│   ├── login/             # Páginas de autenticação
+│   ├── dashboard/         # Dashboard principal
+│   ├── motoristas/        # Gestão de motoristas
+│   ├── viagens/           # Gestão de viagens
+│   ├── receitas/          # Gestão de receitas
+│   ├── despesas/          # Gestão de despesas
+│   └── acertos/           # Gestão de acertos
+├── components/            # Componentes reutilizáveis
+├── lib/                   # Utilitários e configurações
+└── generated/             # Arquivos gerados (Prisma)
+```
+
+## Modelos de Dados
+
+- **Transportadora**: Empresas do sistema
+- **Motorista**: Motoristas vinculados às transportadoras  
+- **Viagem**: Viagens planejadas/executadas
+- **Receita**: Receitas por viagem
+- **Despesa**: Despesas por viagem
+- **Acerto**: Acertos financeiros entre transportadora e motorista
+- **Usuario**: Sistema de autenticação
+
+## Segurança
+
+- Autenticação JWT com cookies httpOnly
+- Middleware de proteção de rotas
+- Validação de dados com Zod
+- Filtros de acesso por tipo de usuário
+- Senhas criptografadas com bcrypt
+
+## Contribuição
+
+1. Fork o projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/nova-feature`)
+3. Commit suas mudanças (`git commit -m 'Adiciona nova feature'`)
+4. Push para a branch (`git push origin feature/nova-feature`)
+5. Abra um Pull Request
+
+## Licença
+
+Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+## Suporte
+
+Para dúvidas ou suporte, entre em contato através dos issues do GitHub.

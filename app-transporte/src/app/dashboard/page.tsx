@@ -41,13 +41,13 @@ export default function Dashboard() {
     async function carregarDados() {
       try {
         // APENAS redirecionar se estivermos exatamente na rota /dashboard
-        if (pathname === '/dashboard' && userInfo?.role === 'MOTORISTA') {
+  if (pathname === '/dashboard' && userInfo?.type === 'MOTORISTA') {
           router.push('/viagens')
           return
         }
         
         // Se for admin, carregar lista de motoristas
-        if (userInfo?.role === 'ADMIN_TRANSPORTADORA') {
+  if (userInfo?.type === 'TRANSPORTADORA') {
           carregarMotoristas()
         }
       } finally {
@@ -147,7 +147,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-center min-h-[400px]">
             <p className="text-lg">Carregando...</p>
           </div>
-        ) : userInfo?.role !== 'ADMIN_TRANSPORTADORA' ? (
+  ) : userInfo?.type !== 'TRANSPORTADORA' ? (
           <div className="flex items-center justify-center min-h-[400px]">
             <p className="text-lg">Redirecionando...</p>
           </div>

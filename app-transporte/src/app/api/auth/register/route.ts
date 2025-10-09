@@ -46,7 +46,43 @@ export async function POST(request: NextRequest) {
     console.log('Hash concluído')
 
     let userId: string
-    let userData: any
+    type TransportadoraData = {
+      id: string;
+      nome: string;
+      cnpj: string;
+      telefone?: string | null;
+      endereco?: string | null;
+      createdAt: string;
+    };
+    type MotoristaData = {
+      id: string;
+      nome: string;
+      cpf: string;
+      cnh?: string | null;
+      telefone?: string | null;
+      transportadoraId: string;
+      codigoValidacao: string;
+      validado: boolean;
+      createdAt: string;
+    };
+    let userData:
+      | {
+          id: string;
+          email: string;
+          type: 'TRANSPORTADORA';
+          nome: string;
+          transportadoraId: string;
+          transportadora: TransportadoraData;
+        }
+      | {
+          id: string;
+          email: string;
+          type: 'MOTORISTA';
+          nome: string;
+          motoristaId: string;
+          motorista: MotoristaData;
+        }
+      | undefined;
 
     if (data.type === 'TRANSPORTADORA') {
       console.log('Criando transportadora...')
@@ -118,6 +154,7 @@ export async function POST(request: NextRequest) {
           cpf: data.cpf || '',
           cnh: data.cnh || null,
           telefone: data.telefone || null,
+          email: data.email,
           transportadoraId: data.transportadoraId,
           codigoValidacao,
           validado: false,

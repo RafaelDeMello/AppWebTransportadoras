@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import bcrypt from 'bcryptjs'
 
 const schema = z.object({
   nome: z.string().min(1),
@@ -16,7 +15,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const data = schema.parse(body)
-    const { nome, cnpj, email, senha, telefone, endereco } = data
+  const { nome, cnpj, email, telefone, endereco } = data
 
     // Verificar se já existe transportadora com mesmo CNPJ ou email
     const transportadoraExistente = await prisma.transportadora.findFirst({
@@ -31,8 +30,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Já existe uma transportadora com este CNPJ ou email' }, { status: 400 })
     }
 
-    // Gerar hash da senha
-    const senhaHash = await bcrypt.hash(senha, 10)
+  // OBS: Este endpoint não persiste senha no modelo de Transportadora.
 
     // Criar transportadora
     const transportadora = await prisma.transportadora.create({
@@ -40,7 +38,6 @@ export async function POST(request: NextRequest) {
         nome,
         cnpj,
         email,
-        senhaHash,
         telefone,
         endereco,
       },

@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
             role: 'MOTORISTA',
             motoristaId: motorista.id,
             transportadoraId: validatedData.transportadoraId,
-            supabaseUid: '', // pode ser preenchido depois se necessário
+            supabaseUid: motorista.id, // usar o id do motorista como supabaseUid único
             createdAt: new Date(),
             updatedAt: new Date(),
           }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useUser } from '@/lib/UserContext'
 import { Layout } from '@/components/layout/Layout'
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
-export default function LoginPage() {
+function LoginPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { login } = useUser()
@@ -60,42 +60,47 @@ export default function LoginPage() {
   }
 
   return (
+    <div className="flex items-center justify-center py-10">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Entrar</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <Label htmlFor="email">E-mail</Label>
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            </div>
+            <div>
+              <Label htmlFor="password">Senha</Label>
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Entrando...' : 'Entrar'}
+            </Button>
+            <div className="text-center">
+              <button 
+                type="button" 
+                onClick={() => router.push('/forgot-password')}
+                className="text-sm text-blue-400 hover:text-blue-300 underline"
+              >
+                Esqueci minha senha
+              </button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
     <Layout>
-      <div className="flex items-center justify-center py-10">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Entrar</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <Label htmlFor="email">E-mail</Label>
-                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-              </div>
-              <div>
-                <Label htmlFor="password">Senha</Label>
-                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-              </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Entrando...' : 'Entrar'}
-              </Button>
-              <div className="text-center">
-                <button 
-                  type="button" 
-                  onClick={() => router.push('/forgot-password')}
-                  className="text-sm text-blue-400 hover:text-blue-300 underline"
-                >
-                  Esqueci minha senha
-                </button>
-              </div>
-              <Button type="button" variant="outline" className="w-full mb-2" onClick={() => router.push('/register')}>
-                Criar conta - Transportadora
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+      <Suspense fallback={<div />}> 
+        <LoginPageInner />
+      </Suspense>
     </Layout>
   )
 }

@@ -23,5 +23,11 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "src/app/_api.backup/**",
+    "src/app/api/auth/login/route-old.ts",
+    "src/app/api/auth/register/route-old.ts",
+    "src/app/dashboard/page-old.tsx"
+  ]
 }

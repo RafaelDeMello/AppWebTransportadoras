@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import bcrypt from 'bcryptjs'
 
 const schema = z.object({
   email: z.string().email(),
-  senha: z.string().min(6),
   transportadoraId: z.string().uuid(),
   nome: z.string().min(1),
   cpf: z.string().min(11),
@@ -18,7 +16,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const data = schema.parse(body)
-    const { email, senha, transportadoraId, nome, cpf, cnh, telefone, codigoValidacao } = data
+  const { email, transportadoraId, nome, cpf, cnh, telefone, codigoValidacao } = data
 
     // Verificar se transportadora existe
     const transportadora = await prisma.transportadora.findUnique({ where: { id: transportadoraId } })
@@ -37,8 +35,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Já existe um motorista com este CPF ou email' }, { status: 400 })
     }
 
-    // Gerar hash da senha
-    const senhaHash = await bcrypt.hash(senha, 10)
+  // OBS: Senha não é persistida no modelo de Motorista
 
     // Criar motorista
     const motorista = await prisma.motorista.create({
@@ -49,7 +46,6 @@ export async function POST(request: NextRequest) {
         telefone: telefone || null,
         transportadoraId,
         email,
-        senhaHash,
         codigoValidacao,
         validado: false,
       },
