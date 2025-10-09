@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import bcrypt from 'bcryptjs';
+// import bcrypt removido, pois não está mais sendo utilizado
 
 // Função para gerar código de validação único
 function gerarCodigoValidacao(): string {
@@ -118,8 +118,9 @@ export async function POST(request: NextRequest) {
         }
 
         // Gerar hash da senha
-        const senhaHash = await bcrypt.hash(validatedData.senha, 10);
+  // senhaHash removido, pois não é utilizado no modelo Motorista
 
+        // Criar motorista
         // Criar motorista
         const motorista = await prisma.motorista.create({
           data: {
@@ -129,7 +130,6 @@ export async function POST(request: NextRequest) {
             telefone: validatedData.telefone || null,
             transportadoraId: validatedData.transportadoraId,
             email: validatedData.email,
-            senhaHash,
             codigoValidacao: codigoValidacao || '',
             validado: false,
           },
@@ -140,6 +140,24 @@ export async function POST(request: NextRequest) {
                 nome: true,
               }
             }
+          }
+        });
+
+        // Gerar hash da senha para usuario
+        const senhaHash = await import('bcryptjs').then(bcrypt => bcrypt.hash(validatedData.senha, 10));
+
+        // Criar usuário vinculado ao motorista
+        await prisma.usuarios.create({
+          data: {
+            id: motorista.id, // mesmo id do motorista
+            email: validatedData.email,
+            senhaHash,
+            role: 'MOTORISTA',
+            motoristaId: motorista.id,
+            transportadoraId: validatedData.transportadoraId,
+            supabaseUid: '', // pode ser preenchido depois se necessário
+            createdAt: new Date(),
+            updatedAt: new Date(),
           }
         });
 

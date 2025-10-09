@@ -154,14 +154,14 @@ export default function MotoristasPage() {
       if (response.ok) {
         const userData = await response.json();
         console.log('Dados do usuário logado:', userData);
-        console.log('TransportadoraId do usuário:', userData?.transportadora?.id);
-        
-        if (!userData?.transportadora?.id) {
+        const user = userData.user || userData;
+        const tid = user.transportadoraId || user.transportadora?.id;
+        console.log('TransportadoraId detectado:', tid);
+        if (!tid) {
           alert('Usuário não está vinculado a uma transportadora. Cadastro não permitido!');
           return;
         }
-        
-        setTransportadoraId(userData.transportadora.id);
+        setTransportadoraId(tid);
       } else {
         alert('Erro ao verificar dados do usuário. Faça login novamente.');
         return;
@@ -504,7 +504,9 @@ export default function MotoristasPage() {
           ...editingMotorista,
           telefone: editingMotorista.telefone || '',
           endereco: '',
-          dataNascimento: ''
+          dataNascimento: '',
+          email: '',
+          senha: ''
         } : undefined}
       />
     </Layout>

@@ -237,42 +237,42 @@ export function MotoristaForm({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <Label htmlFor="email">Email *</Label>
+                <Label htmlFor="email" className="!text-black">Email *</Label>
                 <Input
                   id="email"
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   placeholder="email@exemplo.com"
-                  className={errors.email ? 'border-red-500' : ''}
+                  className={errors.email ? 'border-red-500 !text-black' : '!text-black'}
                 />
                 {errors.email && (
                   <p className="text-sm text-red-500 mt-1">{errors.email}</p>
                 )}
               </div>
               <div className="md:col-span-2">
-                <Label htmlFor="senha">Senha *</Label>
+                <Label htmlFor="senha" className='!text-black'>Senha *</Label>
                 <Input
                   id="senha"
                   type="password"
                   value={formData.senha}
                   onChange={(e) => handleInputChange('senha', e.target.value)}
                   placeholder="Mínimo 6 caracteres"
-                  className={errors.senha ? 'border-red-500' : ''}
+                  className={errors.senha ? 'border-red-500 text-black' : '!text-black'}
                 />
                 {errors.senha && (
                   <p className="text-sm text-red-500 mt-1">{errors.senha}</p>
                 )}
               </div>
             <div className="md:col-span-2">
-              <Label htmlFor="nome">Nome Completo *</Label>
+              <Label htmlFor="nome" className="!text-black">Nome Completo *</Label>
               <Input
                 id="nome"
                 type="text"
                 value={formData.nome}
                 onChange={(e) => handleInputChange('nome', e.target.value)}
                 placeholder="Digite o nome completo"
-                className={errors.nome ? 'border-red-500' : ''}
+                className={errors.nome ? 'border-red-500 text-black' : '!text-black'}
               />
               {errors.nome && (
                 <p className="text-sm text-red-500 mt-1">{errors.nome}</p>
@@ -280,7 +280,7 @@ export function MotoristaForm({
             </div>
 
             <div>
-              <Label htmlFor="cpf">CPF *</Label>
+              <Label htmlFor="cpf" className="!text-black">CPF *</Label>
               <Input
                 id="cpf"
                 type="text"
@@ -288,7 +288,7 @@ export function MotoristaForm({
                 onChange={(e) => handleInputChange('cpf', e.target.value)}
                 placeholder="000.000.000-00"
                 maxLength={14}
-                className={errors.cpf ? 'border-red-500' : ''}
+                className={errors.cpf ? 'border-red-500 text-black' : '!text-black'}
               />
               {errors.cpf && (
                 <p className="text-sm text-red-500 mt-1">{errors.cpf}</p>
@@ -296,7 +296,7 @@ export function MotoristaForm({
             </div>
 
             <div>
-              <Label htmlFor="cnh">CNH *</Label>
+              <Label htmlFor="cnh" className="!text-black">CNH *</Label>
               <Input
                 id="cnh"
                 type="text"
@@ -304,7 +304,7 @@ export function MotoristaForm({
                 onChange={(e) => handleInputChange('cnh', e.target.value)}
                 placeholder="12345678900"
                 maxLength={11}
-                className={errors.cnh ? 'border-red-500' : ''}
+                className={errors.cnh ? 'border-red-500 text-black' : '!text-black'}
               />
               {errors.cnh && (
                 <p className="text-sm text-red-500 mt-1">{errors.cnh}</p>
@@ -312,7 +312,7 @@ export function MotoristaForm({
             </div>
 
             <div>
-              <Label htmlFor="telefone">Telefone</Label>
+              <Label htmlFor="telefone" className="!text-black">Telefone</Label>
               <Input
                 id="telefone"
                 type="text"
@@ -320,7 +320,7 @@ export function MotoristaForm({
                 onChange={(e) => handleInputChange('telefone', e.target.value)}
                 placeholder="(11) 9 8765-4321"
                 maxLength={15}
-                className={errors.telefone ? 'border-red-500' : ''}
+                className={errors.telefone ? 'border-red-500 text-black' : '!text-black'}
               />
               {errors.telefone && (
                 <p className="text-sm text-red-500 mt-1">{errors.telefone}</p>
@@ -328,13 +328,13 @@ export function MotoristaForm({
             </div>
 
             <div>
-              <Label htmlFor="dataNascimento">Data de Nascimento</Label>
+              <Label htmlFor="dataNascimento" className="!text-black">Data de Nascimento</Label>
               <Input
                 id="dataNascimento"
                 type="date"
                 value={formData.dataNascimento}
                 onChange={(e) => handleInputChange('dataNascimento', e.target.value)}
-                className={errors.dataNascimento ? 'border-red-500' : ''}
+                className={errors.dataNascimento ? 'border-red-500 text-black' : '!text-black'}
               />
               {errors.dataNascimento && (
                 <p className="text-sm text-red-500 mt-1">{errors.dataNascimento}</p>
@@ -343,13 +343,14 @@ export function MotoristaForm({
 
 
             <div className="md:col-span-2">
-              <Label htmlFor="endereco">Endereço</Label>
+              <Label htmlFor="endereco" className="!text-black">Endereço</Label>
               <Input
                 id="endereco"
                 type="text"
                 value={formData.endereco}
                 onChange={(e) => handleInputChange('endereco', e.target.value)}
                 placeholder="Rua, número, bairro, cidade - UF"
+                className="!text-black"
               />
             </div>
 
@@ -359,10 +360,10 @@ export function MotoristaForm({
                 id="status"
                 value={formData.status}
                 onChange={(e) => handleInputChange('status', e.target.value as 'ATIVO' | 'INATIVO')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black bg-white"
               >
-                <option value="ATIVO" className="text-gray-900 bg-white">Ativo</option>
-                <option value="INATIVO" className="text-gray-900 bg-white">Inativo</option>
+                <option value="ATIVO" className="text-black bg-white">Ativo</option>
+                <option value="INATIVO" className="text-black bg-white">Inativo</option>
               </select>
             </div>
           </div>
