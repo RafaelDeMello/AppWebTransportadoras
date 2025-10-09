@@ -1,7 +1,11 @@
+// ...existing code...
+// ...existing code...
+// ...existing code...
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { StatusViagem } from '@/generated/prisma';
+import jwt from 'jsonwebtoken';
 
 // Schema de validação para viagem
 const viagemSchema = z.object({
@@ -16,9 +20,25 @@ const viagemSchema = z.object({
 // GET - Listar todas as viagens
 export async function GET(request: NextRequest) {
   try {
+    // Pegar cookie de autenticação
+    const authCookie = request.cookies.get('auth-token');
+    if (!authCookie) {
+      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
+    }
+    // Verificar e decodificar JWT
+    const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+    let decoded;
+    try {
+      decoded = jwt.verify(authCookie.value, JWT_SECRET) as { userId: string; type: string };
+    } catch {
+      return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
+    }
+    if (!decoded || !decoded.userId || !decoded.type) {
+      return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
+    }
     const { searchParams } = new URL(request.url);
-    const transportadoraId = searchParams.get('transportadoraId');
-    const motoristaId = searchParams.get('motoristaId');
+  // const transportadoraIdParam = searchParams.get('transportadoraId'); // Removido pois não é usado diretamente
+    const motoristaIdParam = searchParams.get('motoristaId');
     const status = searchParams.get('status') as StatusViagem | null;
 
     const whereClause: {
@@ -26,11 +46,50 @@ export async function GET(request: NextRequest) {
       motoristaId?: string;
       status?: StatusViagem;
     } = {};
-    if (motoristaId) {
-      whereClause.motoristaId = motoristaId;
-    }
-    if (transportadoraId) {
-      whereClause.transportadoraId = transportadoraId;
+
+    if (decoded.type === 'MOTORISTA') {
+      // Motorista só pode ver suas próprias viagens
+      const usuario = await prisma.usuarios.findUnique({
+        where: { id: decoded.userId },
+        include: { motoristas: true }
+      });
+      if (!usuario || !usuario.motoristas) {
+        return NextResponse.json({ error: 'Motorista não encontrado' }, { status: 404 });
+      }
+      whereClause.motoristaId = usuario.motoristas.id;
+      // LOG: Diagnóstico de filtro
+      console.log('[VIAGENS] [MOTORISTA] decoded.type:', decoded.type)
+      console.log('[VIAGENS] [MOTORISTA] decoded.userId:', decoded.userId)
+      console.log('[VIAGENS] [MOTORISTA] usuario.motoristas.id:', usuario.motoristas.id)
+      console.log('[VIAGENS] [MOTORISTA] whereClause:', whereClause)
+    } else if (decoded.type === 'TRANSPORTADORA') {
+      // Transportadora só pode ver viagens dos motoristas vinculados a ela
+      const usuario = await prisma.usuarios.findUnique({
+        where: { id: decoded.userId },
+        include: { transportadoras: true }
+      });
+      if (!usuario || !usuario.transportadoras) {
+        return NextResponse.json({ error: 'Transportadora não encontrada' }, { status: 404 });
+      }
+      whereClause.transportadoraId = usuario.transportadoras.id;
+      // Se vier motoristaId no param, garantir que pertence à transportadora
+      if (motoristaIdParam) {
+        const motorista = await prisma.motorista.findFirst({
+          where: {
+            id: motoristaIdParam,
+            transportadoraId: usuario.transportadoras.id
+          }
+        });
+        if (!motorista) {
+          return NextResponse.json({ error: 'Motorista não pertence à transportadora' }, { status: 403 });
+        }
+        whereClause.motoristaId = motoristaIdParam;
+      }
+      // LOG: Diagnóstico de filtro
+      console.log('[VIAGENS] [TRANSPORTADORA] decoded.type:', decoded.type)
+      console.log('[VIAGENS] [TRANSPORTADORA] decoded.userId:', decoded.userId)
+      console.log('[VIAGENS] [TRANSPORTADORA] usuario.transportadoras.id:', usuario.transportadoras.id)
+      console.log('[VIAGENS] [TRANSPORTADORA] whereClause:', whereClause)
     }
     if (status) whereClause.status = status;
 
@@ -56,6 +115,15 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // LOG: Viagens retornadas
+    viagens.forEach(v => {
+      console.log('[VIAGENS] Viagem:', {
+        id: v.id,
+        motoristaId: v.motoristaId,
+        transportadoraId: v.transportadoraId,
+        descricao: v.descricao
+      })
+    })
     // Calcular totais para cada viagem
     const viagensComTotais = viagens.map(viagem => {
       const totalReceitas = viagem.receitas.reduce((sum, receita) => sum + Number(receita.valor), 0);
@@ -85,36 +153,39 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    // Validar dados de entrada
-    const validatedData = viagemSchema.parse(body);
-
-    // Verificar se transportadora existe
-    const transportadora = await prisma.transportadora.findUnique({
-      where: { id: validatedData.transportadoraId }
-    });
-
-    if (!transportadora) {
-      return NextResponse.json(
-        { error: 'Transportadora não encontrada' },
-        { status: 400 }
-      );
+    // Pegar cookie de autenticação
+    const authCookie = request.cookies.get('auth-token');
+    if (!authCookie) {
+      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
     }
-
-    // Verificar se motorista existe e pertence à transportadora
-    const motorista = await prisma.motorista.findFirst({
-      where: {
-        id: validatedData.motoristaId,
-        transportadoraId: validatedData.transportadoraId
-      }
-    });
-
-    if (!motorista) {
-      return NextResponse.json(
-        { error: 'Motorista não encontrado ou não pertence à transportadora' },
-        { status: 400 }
-      );
+    // Verificar e decodificar JWT
+    const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+    let decoded;
+    try {
+      decoded = jwt.verify(authCookie.value, JWT_SECRET) as { userId: string; type: string };
+    } catch {
+      return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
     }
-
+    if (!decoded || !decoded.userId || decoded.type !== 'MOTORISTA') {
+      return NextResponse.json({ error: 'Apenas motoristas podem cadastrar viagens' }, { status: 403 });
+    }
+    // Buscar motorista logado
+    const usuario = await prisma.usuarios.findUnique({
+      where: { id: decoded.userId },
+      include: { motoristas: true }
+    });
+    if (!usuario || !usuario.motoristas) {
+      return NextResponse.json({ error: 'Motorista não encontrado' }, { status: 404 });
+    }
+    const motoristaId = usuario.motoristas.id;
+    const transportadoraId = usuario.motoristas.transportadoraId;
+    // Validar dados de entrada, ignorando motoristaId/transportadoraId do body
+    const viagemData = {
+      ...body,
+      motoristaId,
+      transportadoraId
+    };
+    const validatedData = viagemSchema.parse(viagemData);
     // Validar datas
     const dataInicio = new Date(validatedData.dataInicio);
     const dataFim = validatedData.dataFim ? new Date(validatedData.dataFim) : null;

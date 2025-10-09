@@ -48,8 +48,8 @@ export async function middleware(request: NextRequest) {
 
   try {
     // Verificar se o JWT é válido
-    const decoded = jwt.verify(authToken, JWT_SECRET) as { userId: string; role: string }
-    console.log('🟣 [MIDDLEWARE] Token decodificado com sucesso:', { userId: decoded.userId, role: decoded.role })
+  const decoded = jwt.verify(authToken, JWT_SECRET) as { userId: string; type: string }
+  console.log('🟣 [MIDDLEWARE] Token decodificado com sucesso:', { userId: decoded.userId, type: decoded.type })
     console.log('🟣 [MIDDLEWARE] Token válido, permitindo acesso')
     return NextResponse.next()
   } catch (error) {

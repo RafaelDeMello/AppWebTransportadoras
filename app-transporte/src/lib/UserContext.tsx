@@ -130,6 +130,18 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchUserInfo()
+    // Recarregar usuário ao focar ou trocar de aba
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchUserInfo()
+      }
+    }
+    window.addEventListener('focus', fetchUserInfo)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      window.removeEventListener('focus', fetchUserInfo)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [])
 
   const refetch = async () => {

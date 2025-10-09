@@ -66,9 +66,9 @@ export default function ViagensPage() {
       
       setIsLoading(true)
       try {
-        // Carregar viagens (filtrando por motorista se necessário)
+        // Carregar viagens (filtrando por motorista ou transportadora se necessário)
         let viagensUrl = '/api/viagens'
-        if (userInfo.role === 'MOTORISTA' && userInfo.motorista?.id) {
+        if (userInfo.type === 'MOTORISTA' && userInfo.motorista?.id) {
           viagensUrl += `?motoristaId=${userInfo.motorista.id}`
         }
 
@@ -189,9 +189,7 @@ export default function ViagensPage() {
     }).format(value)
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR')
-  }
+  // ... função formatDate removida pois não está sendo usada ...
 
   return (
   <Layout>
@@ -207,7 +205,7 @@ export default function ViagensPage() {
               Gerencie as viagens da transportadora
             </p>
           </div>
-          {userInfo?.role === 'MOTORISTA' && (
+          {userInfo?.type === 'MOTORISTA' && (
             <Button onClick={handleAdd} className="sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Nova Viagem
@@ -440,7 +438,7 @@ export default function ViagensPage() {
                   ? 'Tente ajustar os filtros de busca'
                   : 'Comece adicionando sua primeira viagem'}
               </p>
-              {!searchTerm && statusFilter === 'TODAS' && userInfo?.role === 'MOTORISTA' && (
+              {!searchTerm && statusFilter === 'TODAS' && userInfo?.type === 'MOTORISTA' && (
                 <Button onClick={handleAdd}>
                   <Plus className="mr-2 h-4 w-4" />
                   Adicionar Viagem
@@ -451,7 +449,7 @@ export default function ViagensPage() {
         )}
       </div>
       {/* Modal Formulário de Viagem */}
-      {showForm && userInfo?.role === 'MOTORISTA' && (
+  {showForm && userInfo?.type === 'MOTORISTA' && (
         <ViagemForm
           onSave={async (data) => {
             setFormLoading(true)
@@ -478,7 +476,7 @@ export default function ViagensPage() {
                 const err = await res.json().catch(() => ({}))
                 alert(err.error || 'Erro ao cadastrar viagem')
               }
-            } catch (error) {
+            } catch {
               alert('Erro ao cadastrar viagem')
             } finally {
               setFormLoading(false)
